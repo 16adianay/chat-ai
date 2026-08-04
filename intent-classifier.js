@@ -39,14 +39,6 @@ function escapeForRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Counts how many keywords appear in the text as whole words, matching the
-// keyword as a PREFIX followed by any word characters (\w*). This is a
-// lightweight stand-in for proper stemming: it matches not just exact
-// keywords and simple plurals ("filter"/"filters") but also common word
-// forms derived from the same root ("sort"/"sorting"/"sorted",
-// "update"/"updated", "filter"/"filtering"), without pulling in a stemming
-// library. Word boundaries on both ends still prevent false matches inside
-// unrelated words (e.g. "set" no longer matches inside "upset").
 function countKeywordMatches(text, keywords) {
   return keywords.reduce((count, keyword) => {
     const pattern = new RegExp(`\\b${escapeForRegExp(keyword)}\\w*\\b`, "i");
