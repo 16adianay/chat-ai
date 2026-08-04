@@ -70,7 +70,7 @@ $(function () {
       width: 420,
       height: "100%",
       dragEnabled: true,
-      resizeEnabled: false,
+      resizeEnabled: true,
       showCloseButton: true,
       shading: false,
       visible: false,
@@ -78,7 +78,7 @@ $(function () {
       position: {
         my: "right top",
         at: "right top",
-        of: ".dx-viewport",
+        of: ".demo-container",
       },
       toolbarItems: [
         {

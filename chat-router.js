@@ -6,8 +6,6 @@ function extractJson(text) {
   return JSON.parse(match[0]);
 }
 
-// Shared plumbing: sends the prompt to the AI integration and resolves with
-// the parsed JSON response (or rejects on any failure).
 function executeAiCommand(text, aiIntegration) {
   return new Promise((resolve, reject) => {
     aiIntegration.execute(
@@ -26,8 +24,6 @@ function executeAiCommand(text, aiIntegration) {
   });
 }
 
-// Resolves with a human-readable summary of the form update(s), or rejects if
-// the AI response doesn't contain any valid, known field/value updates.
 function runFormCommand(text, form, aiIntegration) {
   const prompt = `${buildFormSystemPrompt()}\n\nUser request: "${text}"`;
 
@@ -63,8 +59,6 @@ function runFormCommand(text, form, aiIntegration) {
   });
 }
 
-// Resolves with a human-readable summary of the applied grid actions, or
-// rejects if the AI returned no actions or any action failed to apply.
 function runGridCommand(text, gridInstance, aiIntegration) {
   const columnNames = getGridColumnNames(gridInstance);
   const prompt = `${buildGridSystemPrompt(columnNames)}\n\nUser request: "${text}"`;
@@ -103,10 +97,6 @@ function reportAiResult(promise, pushMessage) {
     });
 }
 
-// Routes a single user message to one or more command handlers (form and/or
-// grid, as decided by classifyIntent) and reports a single combined result:
-// - success: one "✅ Done." message with both action summaries joined together.
-// - failure: one generic "❌" message, if ANY of the actions failed.
 function routeMessage(text, { intents, form, gridInstance, aiIntegration, pushMessage }) {
   const commandPromises = intents.map((intent) =>
     intent === "form"
