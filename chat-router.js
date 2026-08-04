@@ -24,6 +24,31 @@ function executeAiCommand(text, aiIntegration) {
   });
 }
 
+function applyFormUpdate(form, update) {
+  const fieldDef = formFields.find((f) => f.name === update.field);
+
+  if (!fieldDef) {
+    return { status: "failure", message: `Unknown field: ${update.field}` };
+  }
+
+  const allowedValues = fieldDef.values;
+  const value = allowedValues
+    ? allowedValues.find(
+        (v) => v.toLowerCase() === String(update.value).toLowerCase(),
+      )
+    : update.value;
+
+  if (allowedValues && !value) {
+    return {
+      status: "failure",
+      message: `Invalid value "${update.value}" for field "${update.field}"`,
+    };
+  }
+
+  form.updateData(update.field, value);
+  return { status: "success", message: `Updated "${update.field}".` };
+}
+
 function runFormCommand(text, form, aiIntegration) {
   const prompt = `${buildFormSystemPrompt()}\n\nUser request: "${text}"`;
 
@@ -34,28 +59,14 @@ function runFormCommand(text, form, aiIntegration) {
       throw new Error("AI response contained no field updates");
     }
 
-    const summaries = updates.map((update) => {
-      if (!update.field) {
-        throw new Error(`Update is missing "field": ${JSON.stringify(update)}`);
-      }
+    const results = updates.map((update) => applyFormUpdate(form, update));
+    const succeeded = results.filter((r) => r.status === "success");
 
-      const fieldDef = formFields.find((f) => f.name === update.field);
-      const allowedValues = fieldDef?.values;
-      const value = allowedValues
-        ? allowedValues.find(
-            (v) => v.toLowerCase() === String(update.value).toLowerCase(),
-          )
-        : update.value;
+    if (succeeded.length === 0) {
+      throw new Error(results[0].message);
+    }
 
-      if (allowedValues && !value) {
-        throw new Error(`Invalid value "${update.value}" for field "${update.field}"`);
-      }
-
-      form.updateData(update.field, value);
-      return `Updated "${update.field}".`;
-    });
-
-    return summaries.join(" ");
+    return succeeded.map((r) => r.message).join(" ");
   });
 }
 
@@ -85,25 +96,15 @@ function reportAiResults(results, pushMessage) {
   const succeeded = results
     .filter((r) => r.status === "fulfilled")
     .map((r) => r.value);
-  const failed = results.filter((r) => r.status === "rejected");
 
-  const lines = [];
-
-  if (succeeded.length > 0) {
-    lines.push(`✅ Done. ${succeeded.join(" ")}`);
-  }
-
-  if (failed.length > 0) {
-    lines.push(
-      succeeded.length > 0
-        ? "⚠️ Some of that couldn't be completed. Please try again."
-        : "❌ An unexpected error occurred. Please try again.",
-    );
-  }
+  const text =
+    succeeded.length > 0
+      ? `✅ Done. ${succeeded.join(" ")}`
+      : "❌ An unexpected error occurred. Please try again.";
 
   pushMessage({
     author: { id: "ai", name: "AI Assistant" },
-    text: lines.join("\n"),
+    text,
   });
 }
 
