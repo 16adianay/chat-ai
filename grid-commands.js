@@ -197,24 +197,19 @@ function buildGridResponseSchema() {
   };
 }
 
-function buildGridSystemPrompt(columnNames) {
+function buildGridPromptSection(columnNames) {
   const commandDescriptions = Object.entries(gridCommands)
     .map(([name, cmd]) => `- "${name}": ${cmd.description}`)
     .join("\n");
 
   return [
-    "You are a data grid assistant. Translate the user request into one or more grid commands.",
+    'GRID: translate any part of the request that affects the task grid into one or more grid commands (the "actions" array).',
     `Available columns (dataField): ${columnNames.join(", ")}.`,
     'The "Completion" column is a boolean: true means the task is completed, false means it is not. ' +
       'To filter for "completed" tasks, use {"column": "Completion", "operator": "=", "value": true}. ' +
       'To filter for "not completed" tasks, use {"column": "Completion", "operator": "=", "value": false}.',
-    "Available commands:",
+    "Available grid commands:",
     commandDescriptions,
-    "",
-    "Respond with STRICT JSON only, no code fences, no explanations, matching this schema:",
-    JSON.stringify(buildGridResponseSchema()),
-    "",
-    'If the request cannot be mapped to any command, respond with {"actions":[]}.',
   ].join("\n");
 }
 

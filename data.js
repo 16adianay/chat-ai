@@ -1,6 +1,4 @@
 const CLASSES = {
-  aiChat: "ai-chat",
-  aiDialog: "ai-chat-dialog",
   clearChatButton: "ai-chat-clear-button",
 };
 

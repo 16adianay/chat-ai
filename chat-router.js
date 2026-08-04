@@ -46,76 +46,95 @@ function applyFormUpdate(form, update) {
   }
 
   form.updateData(update.field, value);
-  return { status: "success", message: `Updated "${update.field}".` };
+  const caption = form.itemOption(update.field)?.label?.text ?? update.field;
+  return { status: "success", message: `Updated "${caption}".` };
 }
 
-function runFormCommand(text, form, aiIntegration) {
-  const prompt = `${buildFormSystemPrompt()}\n\nUser request: "${text}"`;
+function buildCombinedResponseSchema() {
+  const { actions } = buildGridResponseSchema().properties;
+
+  return {
+    type: "object",
+    properties: {
+      updates: {
+        type: "array",
+        description: "Form field updates to apply, in order.",
+        items: {
+          type: "object",
+          properties: {
+            field: { type: "string" },
+            value: { type: ["string", "number", "boolean"] },
+          },
+          required: ["field", "value"],
+        },
+      },
+      actions,
+    },
+    required: ["updates", "actions"],
+  };
+}
+
+function buildCombinedSystemPrompt(columnNames) {
+  return [
+    "You control two DevExtreme widgets on this page: an employee Form and a task DataGrid.",
+    "Figure out what the user's request is about - it may only update form fields, only affect " +
+      "the grid, or do both in the same message - and translate each part into the matching " +
+      "commands described below.",
+    "",
+    buildFormPromptSection(),
+    "",
+    buildGridPromptSection(columnNames),
+    "",
+    "Respond with STRICT JSON only, no code fences, no explanations, matching this schema:",
+    JSON.stringify(buildCombinedResponseSchema()),
+    "",
+    'If the request has nothing to do with the form, respond with "updates": [].',
+    'If the request has nothing to do with the grid, respond with "actions": [].',
+  ].join("\n");
+}
+
+function runCommand(text, { form, gridInstance, aiIntegration }) {
+  const columnNames = getGridColumnNames(gridInstance);
+  const prompt = `${buildCombinedSystemPrompt(columnNames)}\n\nUser request: "${text}"`;
 
   return executeAiCommand(prompt, aiIntegration).then((parsed) => {
     const updates = Array.isArray(parsed.updates) ? parsed.updates : [];
-
-    if (updates.length === 0) {
-      throw new Error("AI response contained no field updates");
-    }
-
-    const results = updates.map((update) => applyFormUpdate(form, update));
-    const succeeded = results.filter((r) => r.status === "success");
-
-    if (succeeded.length === 0) {
-      throw new Error(results[0].message);
-    }
-
-    return succeeded.map((r) => r.message).join(" ");
-  });
-}
-
-function runGridCommand(text, gridInstance, aiIntegration) {
-  const columnNames = getGridColumnNames(gridInstance);
-  const prompt = `${buildGridSystemPrompt(columnNames)}\n\nUser request: "${text}"`;
-
-  return executeAiCommand(prompt, aiIntegration).then((parsed) => {
     const actions = Array.isArray(parsed.actions) ? parsed.actions : [];
 
-    if (actions.length === 0) {
-      throw new Error("AI response contained no grid actions");
+    const formResults = updates.map((update) => applyFormUpdate(form, update));
+    const gridResults = applyGridActions(gridInstance, actions);
+
+    const succeeded = [...formResults, ...gridResults]
+      .filter((r) => r.status === "success")
+      .map((r) => r.message);
+
+    if (succeeded.length === 0) {
+      throw new Error("AI response contained no actionable updates");
     }
 
-    const results = applyGridActions(gridInstance, actions);
-    const failed = results.find((r) => r.status === "failure");
-
-    if (failed) {
-      throw new Error(failed.message);
-    }
-
-    return results.map((r) => r.message).join(" ");
+    return succeeded.join(" ");
   });
 }
 
-function reportAiResults(results, pushMessage) {
-  const succeeded = results
-    .filter((r) => r.status === "fulfilled")
-    .map((r) => r.value);
-
-  const text =
-    succeeded.length > 0
-      ? `✅ Done. ${succeeded.join(" ")}`
-      : "❌ An unexpected error occurred. Please try again.";
-
-  pushMessage({
-    author: { id: "ai", name: "AI Assistant" },
-    text,
-  });
+function reportAiResult(promise, pushMessage) {
+  return promise
+    .then((message) => {
+      pushMessage({
+        author: { id: "ai", name: "AI Assistant" },
+        text: `✅ Done. ${message}`,
+      });
+    })
+    .catch(() => {
+      pushMessage({
+        author: { id: "ai", name: "AI Assistant" },
+        text: "❌ An unexpected error occurred. Please try again.",
+      });
+    });
 }
 
-function routeMessage(text, { intents, form, gridInstance, aiIntegration, pushMessage }) {
-  const commandPromises = intents.map((intent) =>
-    intent === "form"
-      ? runFormCommand(text, form, aiIntegration)
-      : runGridCommand(text, gridInstance, aiIntegration),
-  );
-
-  return Promise.allSettled(commandPromises).then((results) =>
-    reportAiResults(results, pushMessage),
+function routeMessage(text, { form, gridInstance, aiIntegration, pushMessage }) {
+  return reportAiResult(
+    runCommand(text, { form, gridInstance, aiIntegration }),
+    pushMessage,
   );
 }
