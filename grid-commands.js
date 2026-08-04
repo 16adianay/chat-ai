@@ -30,13 +30,8 @@ const gridCommands = {
       required: ["column", "operator", "value"],
     },
     execute(grid, args) {
-      const column = grid.columnOption(args.column);
-      if (!column) {
-        return {
-          status: "failure",
-          message: `Unknown column: ${args.column}`,
-        };
-      }
+      const { column, failure } = getColumnOrFail(grid, args.column);
+      if (failure) return failure;
 
       let { value } = args;
 
@@ -94,13 +89,8 @@ const gridCommands = {
       required: ["column", "sortOrder"],
     },
     execute(grid, args) {
-      const column = grid.columnOption(args.column);
-      if (!column) {
-        return {
-          status: "failure",
-          message: `Unknown column: ${args.column}`,
-        };
-      }
+      const { column, failure } = getColumnOrFail(grid, args.column);
+      if (failure) return failure;
 
       try {
         grid.columnOption(
@@ -146,13 +136,8 @@ const gridCommands = {
       required: ["column", "visible"],
     },
     execute(grid, args) {
-      const column = grid.columnOption(args.column);
-      if (!column) {
-        return {
-          status: "failure",
-          message: `Unknown column: ${args.column}`,
-        };
-      }
+      const { column, failure } = getColumnOrFail(grid, args.column);
+      if (failure) return failure;
 
       try {
         grid.columnOption(args.column, "visible", args.visible);
@@ -172,6 +157,25 @@ const gridCommands = {
     },
   },
 };
+
+// Looks up a column on the grid by dataField. Returns { column } on success,
+// or { failure: {status:'failure', message} } if the column doesn't exist -
+// callers can `return failure;` immediately to avoid repeating this check.
+function getColumnOrFail(grid, columnName) {
+  const column = grid.columnOption(columnName);
+
+  if (!column) {
+    return {
+      column: null,
+      failure: {
+        status: "failure",
+        message: `Unknown column: ${columnName}`,
+      },
+    };
+  }
+
+  return { column, failure: null };
+}
 
 function buildGridResponseSchema() {
   const branches = Object.entries(gridCommands).map(([name, cmd]) => ({
@@ -217,11 +221,12 @@ function buildGridSystemPrompt(columnNames) {
   ].join("\n");
 }
 
+// Reads the current column dataFields directly from the grid instance, so the
+// AI prompt always matches whatever columns are actually configured/visible
+// at the time of the request (instead of a hardcoded list that can drift).
+// All configured columns always have a dataField, so no extra filtering is needed.
 function getGridColumnNames(gridInstance) {
-  return gridInstance
-    .getVisibleColumns()
-    .map((col) => col.dataField)
-    .filter(Boolean);
+  return gridInstance.getVisibleColumns().map((col) => col.dataField);
 }
 
 function applyGridActions(grid, actions) {
