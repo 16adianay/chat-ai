@@ -47,16 +47,19 @@ $(function () {
   function handleUserMessage(message) {
     setDisabled(true);
 
-    const intent = classifyIntent(message.text, gridInstance, form);
+    const intents = classifyIntent(message.text, gridInstance, form);
     const finish = () => {
       setDisabled(false);
       updateClearButtonState();
     };
 
-    const routed =
-      intent === "form"
-        ? routeToForm(message.text, form, aiIntegration, pushMessage)
-        : routeToGrid(message.text, gridInstance, aiIntegration, pushMessage);
+    const routed = routeMessage(message.text, {
+      intents,
+      form,
+      gridInstance,
+      aiIntegration,
+      pushMessage,
+    });
 
     routed.finally(finish);
   }
