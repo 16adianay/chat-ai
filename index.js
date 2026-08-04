@@ -74,7 +74,6 @@ $(function () {
       showCloseButton: true,
       shading: false,
       visible: false,
-      wrapperAttr: { class: `${CLASSES.aiChat} ${CLASSES.aiDialog}` },
       position: {
         my: "right top",
         at: "right top",
@@ -108,7 +107,6 @@ $(function () {
           width: "auto",
           dataSource: {
             store: new DevExpress.data.ArrayStore({ key: "id" }),
-            pushAggregationTimeout: 0,
           },
           reloadOnChange: true,
           user: { id: "user" },
