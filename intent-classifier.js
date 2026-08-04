@@ -35,20 +35,26 @@ function getFormKeywords(formInstanceRef) {
   return [...FORM_ACTION_WORDS, ...fieldWords];
 }
 
-function classifyIntent(text, gridInstanceRef, formInstanceRef) {
-  const lower = text.toLowerCase();
+function escapeForRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
+// Counts how many keywords appear in the text as whole words, so short
+// keywords (e.g. "state", "set") don't falsely match inside unrelated
+// words (e.g. "estate", "upset").
+function countKeywordMatches(text, keywords) {
+  return keywords.reduce((count, keyword) => {
+    const pattern = new RegExp(`\\b${escapeForRegExp(keyword)}\\b`, "i");
+    return count + (pattern.test(text) ? 1 : 0);
+  }, 0);
+}
+
+function classifyIntent(text, gridInstanceRef, formInstanceRef) {
   const gridKeywords = getGridKeywords(gridInstanceRef);
   const formKeywords = getFormKeywords(formInstanceRef);
 
-  const gridScore = gridKeywords.reduce(
-    (acc, kw) => acc + (lower.includes(kw) ? 1 : 0),
-    0,
-  );
-  const formScore = formKeywords.reduce(
-    (acc, kw) => acc + (lower.includes(kw) ? 1 : 0),
-    0,
-  );
+  const gridScore = countKeywordMatches(text, gridKeywords);
+  const formScore = countKeywordMatches(text, formKeywords);
 
   // Fallback: if no keyword matched, assume the message is about the form
   if (gridScore === 0 && formScore === 0) {

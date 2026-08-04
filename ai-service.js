@@ -1,3 +1,5 @@
+const MAX_AI_RETRIES = 3;
+
 function createAiIntegration() {
   const aiService = new AzureOpenAI({
     dangerouslyAllowBrowser: true,
@@ -23,15 +25,20 @@ function createAiIntegration() {
     return result;
   }
 
-  async function getAIResponseRecursive(messages, signal) {
+  async function getAIResponseRecursive(messages, signal, retryCount = 0) {
     return getAIResponse(messages, signal).catch(async (error) => {
       if (!error.message.includes("Connection error")) {
         return Promise.reject(error);
       }
 
+      if (retryCount >= MAX_AI_RETRIES) {
+        return Promise.reject(error);
+      }
+
       DevExpress.ui.notify({
         message:
-          "Our demo AI service reached a temporary request limit. Retrying in 30 seconds.",
+          "Our demo AI service reached a temporary request limit. " +
+          `Retrying in 30 seconds (attempt ${retryCount + 1}/${MAX_AI_RETRIES}).`,
         width: "auto",
         type: "error",
         displayTime: 5000,
@@ -39,7 +46,7 @@ function createAiIntegration() {
 
       await new Promise((resolve) => setTimeout(resolve, 30000));
 
-      return getAIResponseRecursive(messages, signal);
+      return getAIResponseRecursive(messages, signal, retryCount + 1);
     });
   }
 

@@ -22,84 +22,72 @@ function reportAiResult(promise, pushMessage) {
     });
 }
 
+// Shared plumbing for both routers: sends the prompt to the AI integration
+// and resolves with the parsed JSON response (or rejects on any failure).
+function executeAiCommand(text, aiIntegration) {
+  return new Promise((resolve, reject) => {
+    aiIntegration.execute(
+      { text },
+      {
+        onComplete: (finalResponse) => {
+          try {
+            resolve(extractJson(finalResponse));
+          } catch (error) {
+            reject(error);
+          }
+        },
+        onError: (error) => reject(error),
+      },
+    );
+  });
+}
+
 function routeToForm(text, form, aiIntegration, pushMessage) {
-  return reportAiResult(
-    new Promise((resolve, reject) => {
-      aiIntegration.execute(
-        {
-          text: `${buildFormSystemPrompt()}\n\nUser request: "${text}"`,
-        },
-        {
-          onComplete: (finalResponse) => {
-            try {
-              const parsed = extractJson(finalResponse);
+  const prompt = `${buildFormSystemPrompt()}\n\nUser request: "${text}"`;
 
-              if (!parsed.field) {
-                throw new Error();
-              }
+  const promise = executeAiCommand(prompt, aiIntegration).then((parsed) => {
+    if (!parsed.field) {
+      throw new Error();
+    }
 
-              const fieldDef = formFields.find((f) => f.name === parsed.field);
-              const allowedValues = fieldDef?.values;
-              const value = allowedValues
-                ? allowedValues.find(
-                    (v) =>
-                      v.toLowerCase() === String(parsed.value).toLowerCase(),
-                  )
-                : parsed.value;
+    const fieldDef = formFields.find((f) => f.name === parsed.field);
+    const allowedValues = fieldDef?.values;
+    const value = allowedValues
+      ? allowedValues.find(
+          (v) => v.toLowerCase() === String(parsed.value).toLowerCase(),
+        )
+      : parsed.value;
 
-              if (allowedValues && !value) {
-                throw new Error();
-              }
+    if (allowedValues && !value) {
+      throw new Error();
+    }
 
-              form.updateData(parsed.field, value);
-              resolve(`Updated "${parsed.field}".`);
-            } catch (error) {
-              reject(error);
-            }
-          },
-          onError: (error) => reject(error),
-        },
-      );
-    }),
-    pushMessage,
-  );
+    form.updateData(parsed.field, value);
+    return `Updated "${parsed.field}".`;
+  });
+
+  return reportAiResult(promise, pushMessage);
 }
 
 function routeToGrid(text, gridInstance, aiIntegration, pushMessage) {
-  return reportAiResult(
-    new Promise((resolve, reject) => {
-      aiIntegration.execute(
-        {
-          text: `${buildGridSystemPrompt(gridColumnNames)}\n\nUser request: "${text}"`,
-        },
-        {
-          onComplete: (finalResponse) => {
-            try {
-              const parsed = extractJson(finalResponse);
-              const actions = Array.isArray(parsed.actions)
-                ? parsed.actions
-                : [];
+  const prompt = `${buildGridSystemPrompt(gridColumnNames)}\n\nUser request: "${text}"`;
 
-              if (actions.length === 0) {
-                throw new Error();
-              }
+  const promise = executeAiCommand(prompt, aiIntegration).then((parsed) => {
+    const actions = Array.isArray(parsed.actions) ? parsed.actions : [];
 
-              const results = applyGridActions(gridInstance, actions);
-              const hasFailure = results.some((r) => r.status === "failure");
+    if (actions.length === 0) {
+      throw new Error();
+    }
 
-              if (hasFailure) {
-                throw new Error();
-              }
+    const results = applyGridActions(gridInstance, actions);
+    const hasFailure = results.some((r) => r.status === "failure");
 
-              resolve(results.map((r) => r.message).join(" "));
-            } catch (error) {
-              reject(error);
-            }
-          },
-          onError: (error) => reject(error),
-        },
-      );
-    }),
-    pushMessage,
-  );
+    if (hasFailure) {
+      throw new Error();
+    }
+
+    return results.map((r) => r.message).join(" ");
+  });
+
+  return reportAiResult(promise, pushMessage);
 }
