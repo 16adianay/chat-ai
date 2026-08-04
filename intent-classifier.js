@@ -39,21 +39,13 @@ function escapeForRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Counts how many keywords appear in the text as whole words, so short
-// keywords (e.g. "state", "set") don't falsely match inside unrelated
-// words (e.g. "estate", "upset").
 function countKeywordMatches(text, keywords) {
   return keywords.reduce((count, keyword) => {
-    const pattern = new RegExp(`\\b${escapeForRegExp(keyword)}\\b`, "i");
+    const pattern = new RegExp(`\\b${escapeForRegExp(keyword)}s?\\b`, "i");
     return count + (pattern.test(text) ? 1 : 0);
   }, 0);
 }
 
-// Returns the list of intents present in the message: "form", "grid", or
-// both when the message clearly asks for a form update AND a grid action
-// in the same sentence (e.g. "change Position to CMO and filter by Priority").
-// Falls back to ["form"] when nothing matches, so downstream code always
-// has at least one intent to route to.
 function classifyIntent(text, gridInstanceRef, formInstanceRef) {
   const gridKeywords = getGridKeywords(gridInstanceRef);
   const formKeywords = getFormKeywords(formInstanceRef);

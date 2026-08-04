@@ -1,6 +1,3 @@
-// ===== Grid AI commands registry =====
-// Public API only equivalent of the built-in DataGrid AI Assistant command set.
-// Selection commands are intentionally omitted since selection is disabled in this demo.
 const gridColumnNames = [
   "Subject",
   "StartDate",
@@ -51,9 +48,6 @@ const gridCommands = {
 
       let { value } = args;
 
-      // Safety net: the "Completion" column is filtered as a boolean (see calculateFilterExpression
-      // on that column), so coerce whatever representation the AI returned (100/"completed"/true, etc.)
-      // into an actual boolean before it reaches the grid.
       if (args.column === "Completion" && typeof value !== "boolean") {
         const normalized = String(value).trim().toLowerCase();
         value =
@@ -61,10 +55,6 @@ const gridCommands = {
           ["true", "completed", "yes", "100"].includes(normalized);
       }
 
-      // Safety net: "StartDate"/"DueDate" store non-ISO strings (e.g. "2023/04/15") as their raw
-      // value. DevExtreme only normalizes date comparisons when the filter value is an actual Date
-      // instance - comparing the raw string directly against the AI's ISO string (e.g.
-      // "2023-04-15T00:00:00") never matches because they're different strings. Parse it here.
       if (
         (column.dataType === "date" || column.dataType === "datetime") &&
         typeof value === "string"
@@ -92,7 +82,7 @@ const gridCommands = {
     schema: { type: "object", properties: {} },
     execute(grid) {
       try {
-        grid.clearFilter(); // public dxDataGrid method
+        grid.clearFilter();
         return { status: "success", message: "Filter cleared." };
       } catch {
         return { status: "failure", message: "Could not clear filter." };
@@ -121,7 +111,6 @@ const gridCommands = {
       }
 
       try {
-        // Public API: columnOption(column, 'sortOrder', value)
         grid.columnOption(
           args.column,
           "sortOrder",
@@ -174,7 +163,7 @@ const gridCommands = {
       }
 
       try {
-        grid.columnOption(args.column, "visible", args.visible); // public API
+        grid.columnOption(args.column, "visible", args.visible);
         const caption = column.caption ?? args.column;
         return {
           status: "success",
@@ -192,7 +181,6 @@ const gridCommands = {
   },
 };
 
-// Build the response JSON Schema from the command registry (mirrors buildResponseSchema in the built-in AI Assistant)
 function buildGridResponseSchema() {
   const branches = Object.entries(gridCommands).map(([name, cmd]) => ({
     type: "object",
@@ -216,7 +204,6 @@ function buildGridResponseSchema() {
   };
 }
 
-// Build a system prompt describing every available command
 function buildGridSystemPrompt(columnNames) {
   const commandDescriptions = Object.entries(gridCommands)
     .map(([name, cmd]) => `- "${name}": ${cmd.description}`)
@@ -238,7 +225,6 @@ function buildGridSystemPrompt(columnNames) {
   ].join("\n");
 }
 
-// Apply an array of actions to the grid via public methods, collecting per-command results
 function applyGridActions(grid, actions) {
   return actions.map((action) => {
     const command = gridCommands[action.name];
