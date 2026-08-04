@@ -49,6 +49,11 @@ function countKeywordMatches(text, keywords) {
   }, 0);
 }
 
+// Returns the list of intents present in the message: "form", "grid", or
+// both when the message clearly asks for a form update AND a grid action
+// in the same sentence (e.g. "change Position to CMO and filter by Priority").
+// Falls back to ["form"] when nothing matches, so downstream code always
+// has at least one intent to route to.
 function classifyIntent(text, gridInstanceRef, formInstanceRef) {
   const gridKeywords = getGridKeywords(gridInstanceRef);
   const formKeywords = getFormKeywords(formInstanceRef);
@@ -56,10 +61,9 @@ function classifyIntent(text, gridInstanceRef, formInstanceRef) {
   const gridScore = countKeywordMatches(text, gridKeywords);
   const formScore = countKeywordMatches(text, formKeywords);
 
-  // Fallback: if no keyword matched, assume the message is about the form
-  if (gridScore === 0 && formScore === 0) {
-    return "form";
-  }
+  const intents = [];
+  if (formScore > 0) intents.push("form");
+  if (gridScore > 0) intents.push("grid");
 
-  return gridScore >= formScore ? "grid" : "form";
+  return intents.length > 0 ? intents : ["form"];
 }

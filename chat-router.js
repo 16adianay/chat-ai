@@ -6,24 +6,8 @@ function extractJson(text) {
   return JSON.parse(match[0]);
 }
 
-function reportAiResult(promise, pushMessage) {
-  return promise
-    .then((message) => {
-      pushMessage({
-        author: { id: "ai", name: "AI Assistant" },
-        text: `✅ Done. ${message}`,
-      });
-    })
-    .catch(() => {
-      pushMessage({
-        author: { id: "ai", name: "AI Assistant" },
-        text: "❌ An unexpected error occurred. Please try again.",
-      });
-    });
-}
-
-// Shared plumbing for both routers: sends the prompt to the AI integration
-// and resolves with the parsed JSON response (or rejects on any failure).
+// Shared plumbing: sends the prompt to the AI integration and resolves with
+// the parsed JSON response (or rejects on any failure).
 function executeAiCommand(text, aiIntegration) {
   return new Promise((resolve, reject) => {
     aiIntegration.execute(
@@ -42,10 +26,12 @@ function executeAiCommand(text, aiIntegration) {
   });
 }
 
-function routeToForm(text, form, aiIntegration, pushMessage) {
+// Resolves with a human-readable summary of the form update, or rejects if
+// the AI response doesn't match a known/allowed field or value.
+function runFormCommand(text, form, aiIntegration) {
   const prompt = `${buildFormSystemPrompt()}\n\nUser request: "${text}"`;
 
-  const promise = executeAiCommand(prompt, aiIntegration).then((parsed) => {
+  return executeAiCommand(prompt, aiIntegration).then((parsed) => {
     if (!parsed.field) {
       throw new Error();
     }
@@ -65,14 +51,14 @@ function routeToForm(text, form, aiIntegration, pushMessage) {
     form.updateData(parsed.field, value);
     return `Updated "${parsed.field}".`;
   });
-
-  return reportAiResult(promise, pushMessage);
 }
 
-function routeToGrid(text, gridInstance, aiIntegration, pushMessage) {
+// Resolves with a human-readable summary of the applied grid actions, or
+// rejects if the AI returned no actions or any action failed to apply.
+function runGridCommand(text, gridInstance, aiIntegration) {
   const prompt = `${buildGridSystemPrompt(gridColumnNames)}\n\nUser request: "${text}"`;
 
-  const promise = executeAiCommand(prompt, aiIntegration).then((parsed) => {
+  return executeAiCommand(prompt, aiIntegration).then((parsed) => {
     const actions = Array.isArray(parsed.actions) ? parsed.actions : [];
 
     if (actions.length === 0) {
@@ -88,6 +74,38 @@ function routeToGrid(text, gridInstance, aiIntegration, pushMessage) {
 
     return results.map((r) => r.message).join(" ");
   });
+}
 
-  return reportAiResult(promise, pushMessage);
+function reportAiResult(promise, pushMessage) {
+  return promise
+    .then((message) => {
+      pushMessage({
+        author: { id: "ai", name: "AI Assistant" },
+        text: `✅ Done. ${message}`,
+      });
+    })
+    .catch(() => {
+      pushMessage({
+        author: { id: "ai", name: "AI Assistant" },
+        text: "❌ An unexpected error occurred. Please try again.",
+      });
+    });
+}
+
+// Routes a single user message to one or more command handlers (form and/or
+// grid, as decided by classifyIntent) and reports a single combined result:
+// - success: one "✅ Done." message with both action summaries joined together.
+// - failure: one generic "❌" message, if ANY of the actions failed.
+function routeMessage(text, { intents, form, gridInstance, aiIntegration, pushMessage }) {
+  const commandPromises = intents.map((intent) =>
+    intent === "form"
+      ? runFormCommand(text, form, aiIntegration)
+      : runGridCommand(text, gridInstance, aiIntegration),
+  );
+
+  const combined = Promise.all(commandPromises).then((messages) =>
+    messages.join(" "),
+  );
+
+  return reportAiResult(combined, pushMessage);
 }
