@@ -34,7 +34,7 @@ function runFormCommand(text, form, aiIntegration) {
       throw new Error();
     }
 
-    const messages = updates.map((update) => {
+    const summaries = updates.map((update) => {
       if (!update.field) {
         throw new Error();
       }
@@ -55,12 +55,13 @@ function runFormCommand(text, form, aiIntegration) {
       return `Updated "${update.field}".`;
     });
 
-    return messages.join(" ");
+    return summaries.join(" ");
   });
 }
 
 function runGridCommand(text, gridInstance, aiIntegration) {
-  const prompt = `${buildGridSystemPrompt(gridColumnNames)}\n\nUser request: "${text}"`;
+  const columnNames = getGridColumnNames(gridInstance);
+  const prompt = `${buildGridSystemPrompt(columnNames)}\n\nUser request: "${text}"`;
 
   return executeAiCommand(prompt, aiIntegration).then((parsed) => {
     const actions = Array.isArray(parsed.actions) ? parsed.actions : [];

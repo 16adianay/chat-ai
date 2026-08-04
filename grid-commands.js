@@ -1,11 +1,3 @@
-const gridColumnNames = [
-  "Subject",
-  "StartDate",
-  "DueDate",
-  "Priority",
-  "Completion",
-];
-
 const gridCommands = {
   filterValue: {
     description:
@@ -223,6 +215,13 @@ function buildGridSystemPrompt(columnNames) {
     "",
     'If the request cannot be mapped to any command, respond with {"actions":[]}.',
   ].join("\n");
+}
+
+function getGridColumnNames(gridInstance) {
+  return gridInstance
+    .getVisibleColumns()
+    .map((col) => col.dataField)
+    .filter(Boolean);
 }
 
 function applyGridActions(grid, actions) {
