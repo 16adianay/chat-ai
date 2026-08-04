@@ -158,9 +158,6 @@ const gridCommands = {
   },
 };
 
-// Looks up a column on the grid by dataField. Returns { column } on success,
-// or { failure: {status:'failure', message} } if the column doesn't exist -
-// callers can `return failure;` immediately to avoid repeating this check.
 function getColumnOrFail(grid, columnName) {
   const column = grid.columnOption(columnName);
 
@@ -221,10 +218,6 @@ function buildGridSystemPrompt(columnNames) {
   ].join("\n");
 }
 
-// Reads the current column dataFields directly from the grid instance, so the
-// AI prompt always matches whatever columns are actually configured/visible
-// at the time of the request (instead of a hardcoded list that can drift).
-// All configured columns always have a dataField, so no extra filtering is needed.
 function getGridColumnNames(gridInstance) {
   return gridInstance.getVisibleColumns().map((col) => col.dataField);
 }

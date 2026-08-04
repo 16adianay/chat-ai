@@ -24,9 +24,6 @@ function executeAiCommand(text, aiIntegration) {
   });
 }
 
-// Resolves a single AI-returned update into { field, value }, or throws if
-// the field is unknown or the value isn't one of the field's allowed values.
-// Does NOT apply the update - see runFormCommand for the two-phase flow.
 function resolveFormUpdate(update) {
   if (!update.field) {
     throw new Error(`Update is missing "field": ${JSON.stringify(update)}`);
@@ -47,13 +44,6 @@ function resolveFormUpdate(update) {
   return { field: update.field, value };
 }
 
-// Resolves with a human-readable summary of the form update(s), or rejects if
-// the AI response doesn't contain any valid, known field/value updates.
-//
-// Validation happens in two phases so a single invalid update can't leave the
-// form partially changed:
-//   1. resolve & validate every update first (no side effects yet)
-//   2. only once all of them are known-good, apply them all via form.updateData()
 function runFormCommand(text, form, aiIntegration) {
   const prompt = `${buildFormSystemPrompt()}\n\nUser request: "${text}"`;
 
@@ -64,10 +54,8 @@ function runFormCommand(text, form, aiIntegration) {
       throw new Error("AI response contained no field updates");
     }
 
-    // Phase 1: validate all updates up front (throws on the first invalid one).
     const resolvedUpdates = updates.map(resolveFormUpdate);
 
-    // Phase 2: only apply once every update is known to be valid.
     const summaries = resolvedUpdates.map(({ field, value }) => {
       form.updateData(field, value);
       return `Updated "${field}".`;
@@ -77,8 +65,6 @@ function runFormCommand(text, form, aiIntegration) {
   });
 }
 
-// Resolves with a human-readable summary of the applied grid actions, or
-// rejects if the AI returned no actions or any action failed to apply.
 function runGridCommand(text, gridInstance, aiIntegration) {
   const columnNames = getGridColumnNames(gridInstance);
   const prompt = `${buildGridSystemPrompt(columnNames)}\n\nUser request: "${text}"`;
@@ -101,13 +87,6 @@ function runGridCommand(text, gridInstance, aiIntegration) {
   });
 }
 
-// Reports the outcome of one or more command promises as a single chat
-// message, handling partial success/failure instead of collapsing everything
-// into one generic error as soon as any single intent fails:
-//   - all succeeded -> one "✅ Done. ..." message with every summary joined.
-//   - all failed    -> one generic "❌" error message.
-//   - mixed         -> both a "✅ Done. ..." line for what succeeded and a
-//                      "⚠️" line noting that something else couldn't be done.
 function reportAiResults(results, pushMessage) {
   const succeeded = results
     .filter((r) => r.status === "fulfilled")
@@ -134,10 +113,6 @@ function reportAiResults(results, pushMessage) {
   });
 }
 
-// Routes a single user message to one or more command handlers (form and/or
-// grid, as decided by classifyIntent) and reports a combined result. Uses
-// Promise.allSettled so that if one intent fails, the outcome of the other
-// intent is still reported instead of being swallowed by a generic error.
 function routeMessage(text, { intents, form, gridInstance, aiIntegration, pushMessage }) {
   const commandPromises = intents.map((intent) =>
     intent === "form"
