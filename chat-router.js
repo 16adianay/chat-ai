@@ -52,7 +52,8 @@ function runFormCommand(text, form, aiIntegration) {
       }
 
       form.updateData(update.field, value);
-      return `Updated "${update.field}".`;
+      const caption = form.itemOption(update.field)?.label?.text ?? update.field;
+      return `Updated "${caption}".`;
     });
 
     return summaries.join(" ");
