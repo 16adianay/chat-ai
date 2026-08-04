@@ -1,14 +1,6 @@
 // ===== Grid AI commands registry =====
 // Public API only equivalent of the built-in DataGrid AI Assistant command set.
 // Selection commands are intentionally omitted since selection is disabled in this demo.
-const gridColumnNames = [
-  "Subject",
-  "StartDate",
-  "DueDate",
-  "Priority",
-  "Completion",
-];
-
 const gridCommands = {
   filterValue: {
     description:
@@ -216,7 +208,10 @@ function buildGridResponseSchema() {
   };
 }
 
-// Build a system prompt describing every available command
+// Build a system prompt describing every available command.
+// `columnNames` should be gathered dynamically from the live grid instance
+// (see getGridColumnNames below) so the prompt always reflects the grid's
+// actual current columns instead of a hardcoded list.
 function buildGridSystemPrompt(columnNames) {
   const commandDescriptions = Object.entries(gridCommands)
     .map(([name, cmd]) => `- "${name}": ${cmd.description}`)
@@ -236,6 +231,16 @@ function buildGridSystemPrompt(columnNames) {
     "",
     'If the request cannot be mapped to any command, respond with {"actions":[]}.',
   ].join("\n");
+}
+
+// Reads the current column dataFields directly from the grid instance, so the
+// AI prompt always matches whatever columns are actually configured/visible
+// at the time of the request (instead of a hardcoded list that can drift).
+function getGridColumnNames(gridInstance) {
+  return gridInstance
+    .getVisibleColumns()
+    .map((col) => col.dataField)
+    .filter(Boolean);
 }
 
 // Apply an array of actions to the grid via public methods, collecting per-command results
