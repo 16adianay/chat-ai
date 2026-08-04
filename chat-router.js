@@ -24,26 +24,6 @@ function executeAiCommand(text, aiIntegration) {
   });
 }
 
-function resolveFormUpdate(update) {
-  if (!update.field) {
-    throw new Error(`Update is missing "field": ${JSON.stringify(update)}`);
-  }
-
-  const fieldDef = formFields.find((f) => f.name === update.field);
-  const allowedValues = fieldDef?.values;
-  const value = allowedValues
-    ? allowedValues.find(
-        (v) => v.toLowerCase() === String(update.value).toLowerCase(),
-      )
-    : update.value;
-
-  if (allowedValues && !value) {
-    throw new Error(`Invalid value "${update.value}" for field "${update.field}"`);
-  }
-
-  return { field: update.field, value };
-}
-
 function runFormCommand(text, form, aiIntegration) {
   const prompt = `${buildFormSystemPrompt()}\n\nUser request: "${text}"`;
 
@@ -54,11 +34,25 @@ function runFormCommand(text, form, aiIntegration) {
       throw new Error("AI response contained no field updates");
     }
 
-    const resolvedUpdates = updates.map(resolveFormUpdate);
+    const summaries = updates.map((update) => {
+      if (!update.field) {
+        throw new Error(`Update is missing "field": ${JSON.stringify(update)}`);
+      }
 
-    const summaries = resolvedUpdates.map(({ field, value }) => {
-      form.updateData(field, value);
-      return `Updated "${field}".`;
+      const fieldDef = formFields.find((f) => f.name === update.field);
+      const allowedValues = fieldDef?.values;
+      const value = allowedValues
+        ? allowedValues.find(
+            (v) => v.toLowerCase() === String(update.value).toLowerCase(),
+          )
+        : update.value;
+
+      if (allowedValues && !value) {
+        throw new Error(`Invalid value "${update.value}" for field "${update.field}"`);
+      }
+
+      form.updateData(update.field, value);
+      return `Updated "${update.field}".`;
     });
 
     return summaries.join(" ");
