@@ -195,9 +195,6 @@ $(function () {
       dataSource: tasks,
       keyExpr: "ID",
       showBorders: true,
-      onContentReady(e) {
-        DevExpress.ui.repaintFloatingActionButton();
-      },
       filterRow: { visible: true },
       headerFilter: { visible: true },
       filterSyncEnabled: true,
