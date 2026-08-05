@@ -162,7 +162,6 @@ $(function () {
       formData: employee,
       colCount: 3,
       labelLocation: "top",
-      aiIntegration,
       items: [
         {
           dataField: "Prefix",
