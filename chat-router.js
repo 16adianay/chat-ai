@@ -68,29 +68,29 @@ function runCommand(text, { form, gridInstance, aiIntegration }) {
   const columnNames = getGridColumnNames(gridInstance);
   const prompt = `${buildGridSystemPrompt(columnNames)}\n\nUser request: "${text}"`;
 
-  let gridError = null;
   const gridResultsPromise = executeAiCommand(prompt, aiIntegration)
     .then((parsed) => {
       const actions = Array.isArray(parsed.actions) ? parsed.actions : [];
-      return applyGridActions(gridInstance, actions, text);
+      return { results: applyGridActions(gridInstance, actions, text), error: null };
     })
-    .catch((error) => {
-      gridError = error;
-      return [];
-    });
+    .catch((error) => ({ results: [], error }));
 
   const formResultsPromise = applyFormSmartPaste(form, text).then((result) => [
     result,
   ]);
 
   return Promise.all([formResultsPromise, gridResultsPromise]).then(
-    ([formResults, gridResults]) => {
+    ([formResults, { results: gridResults, error: gridError }]) => {
       const succeeded = [...formResults, ...gridResults]
         .filter((r) => r.status === "success")
         .map((r) => r.message);
 
       if (succeeded.length === 0) {
         throw gridError ?? new ChatCommandError(FIELD_OR_VALUE_NOT_FOUND_MESSAGE);
+      }
+
+      if (gridError) {
+        console.warn("Grid AI request failed, but form succeeded:", gridError);
       }
 
       return succeeded.join(" ");
