@@ -59,7 +59,10 @@ const gridCommands = {
           message: `Filtered by "${column.caption ?? args.column}".`,
         };
       } catch {
-        return { status: "failure", message: "Could not apply filter." };
+        return {
+          status: "failure",
+          message: `I couldn't apply that filter to "${column.caption ?? args.column}". Check that the value matches the column's type.`,
+        };
       }
     },
   },
@@ -72,7 +75,10 @@ const gridCommands = {
         grid.clearFilter();
         return { status: "success", message: "Filter cleared." };
       } catch {
-        return { status: "failure", message: "Could not clear filter." };
+        return {
+          status: "failure",
+          message: "I couldn't clear the grid's filters.",
+        };
       }
     },
   },
@@ -107,7 +113,10 @@ const gridCommands = {
 
         return { status: "success", message };
       } catch {
-        return { status: "failure", message: "Could not apply sorting." };
+        return {
+          status: "failure",
+          message: `I couldn't sort by "${column.caption ?? args.column}".`,
+        };
       }
     },
   },
@@ -120,7 +129,10 @@ const gridCommands = {
         grid.clearSorting();
         return { status: "success", message: "Sorting cleared." };
       } catch {
-        return { status: "failure", message: "Could not clear sorting." };
+        return {
+          status: "failure",
+          message: "I couldn't clear the grid's sorting.",
+        };
       }
     },
   },
@@ -151,7 +163,7 @@ const gridCommands = {
       } catch {
         return {
           status: "failure",
-          message: "Could not change column visibility.",
+          message: `I couldn't change the visibility of "${column.caption ?? args.column}".`,
         };
       }
     },
@@ -166,7 +178,7 @@ function getColumnOrFail(grid, columnName) {
       column: null,
       failure: {
         status: "failure",
-        message: `Unknown column: ${columnName}`,
+        message: `I couldn't find a grid column named "${columnName}".`,
       },
     };
   }
@@ -224,7 +236,7 @@ function applyGridActions(grid, actions) {
     if (!command) {
       return {
         status: "failure",
-        message: `Unknown command: ${action.name}`,
+        message: `I don't know how to do "${action.name}".`,
       };
     }
 

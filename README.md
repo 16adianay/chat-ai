@@ -84,15 +84,16 @@ a single request.
    `execute(grid, args)`, returning `{status: "success"|"failure", message}` per action —
    **the same tolerant, per-item reporting used for form updates**, not an all-or-nothing
    batch.
-5. **Only successful updates/actions are reported**, regardless of whether they came from the
-   form or the grid. All success messages (form + grid) are joined together. If **none**
-   succeeded, the whole request is rejected (surfaces as the generic `❌` error — see below).
+5. **Only successful updates/actions are reported as "Done"**, regardless of whether they
+   came from the form or the grid. All success messages (form + grid) are joined together.
+   If **none** succeeded — whether because the AI returned no updates/actions, an unknown
+   field/column was referenced, or an invalid value was given — the whole request is
+   rejected with one universal message (see below) instead of listing every reason.
 
 This means a request like `"update Name to Diana and change Position to ASD"` (an invalid
-position) will apply the name change, reply `✅ Done. Updated "Name".`, and silently ignore
-the invalid `Position` request rather than rejecting the whole message — and the same is now
-true for grid actions: a message with one valid and one invalid grid command still applies
-and reports the valid one.
+position) will apply the name change and reply `✅ Done. Updated "Name".`, silently ignoring
+the invalid `Position` request — and the same is true for grid actions: a message with one
+valid and one invalid grid command still applies and reports only the valid one.
 
 ### Reporting (`reportAiResult` / `routeMessage`)
 
@@ -100,11 +101,21 @@ and reports the valid one.
 one chat message:
 
 - If **at least one** update/action succeeded → `✅ Done. <joined success messages>`.
-- If **none** succeeded (including AI/network errors) → `❌ An unexpected error occurred. Please try again.`
+- If **none** succeeded — the AI returned nothing relevant, referenced an unknown field/
+  column, or gave an invalid value → `❌ I couldn't find that field or column, or the value
+  you entered isn't valid. Please check the name and value and try again.`
+- If the AI's response couldn't be parsed as JSON → `❌ I received an unexpected response
+  from the AI. Please rephrase your request and try again.`
+- If the outgoing request was rejected for being too long → `❌ That message is too long for
+  me to process. Please shorten it and try again.`
+- For any other unexpected error (network failure, AI service outage, etc.) → `❌ I couldn't
+  reach the AI service. Please check your connection and try again.`
 
-There is intentionally no separate "partially failed" warning message — failures (invalid
-field values, unknown grid actions, AI errors) are simply omitted from the report rather than
-called out, per the team's preference to keep the chat output focused on what *did* happen.
+
+
+Each specific case is raised as a `ChatCommandError` (defined in `chat-router.js`) whose
+`message` is shown to the user as-is; anything else falls back to the generic network-error
+text above.
 
 ## Grid commands reference
 

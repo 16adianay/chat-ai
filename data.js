@@ -17,7 +17,7 @@ const positions = [
   "CEO",
   "Sales Assistant",
   "CMO",
-  "HR Manager",
+  "Manager",
   "Designer",
   "Developer",
 ];

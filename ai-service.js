@@ -48,7 +48,11 @@ function createAiIntegration() {
       const isValidRequest = JSON.stringify(prompt.user).length < 5000;
       if (!isValidRequest) {
         return {
-          promise: Promise.reject(new Error()),
+          promise: Promise.reject(
+            new ChatCommandError(
+              "❌ That message is too long for me to process. Please shorten it and try again.",
+            ),
+          ),
           abort: () => {},
         };
       }

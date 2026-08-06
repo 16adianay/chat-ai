@@ -1,9 +1,21 @@
+// Carries a user-ready chat message; callers surface `message` as-is instead of a generic fallback.
+class ChatCommandError extends Error {}
+
 function extractJson(text) {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) {
-    throw new Error("AI response did not contain a JSON object");
+    throw new ChatCommandError(
+      "❌ I received an unexpected response from the AI. Please rephrase your request and try again.",
+    );
   }
-  return JSON.parse(match[0]);
+
+  try {
+    return JSON.parse(match[0]);
+  } catch {
+    throw new ChatCommandError(
+      "❌ I received an unexpected response from the AI. Please rephrase your request and try again.",
+    );
+  }
 }
 
 function executeAiCommand(text, aiIntegration) {
@@ -28,9 +40,13 @@ function applyFormUpdate(form, update) {
   const fieldDef = formFields.find((f) => f.name === update.field);
 
   if (!fieldDef) {
-    return { status: "failure", message: `Unknown field: ${update.field}` };
+    return {
+      status: "failure",
+      message: `I couldn't find a form field named "${update.field}".`,
+    };
   }
 
+  const caption = form.itemOption(update.field)?.label?.text ?? update.field;
   const allowedValues = fieldDef.values;
   const value = allowedValues
     ? allowedValues.find(
@@ -41,12 +57,11 @@ function applyFormUpdate(form, update) {
   if (allowedValues && !value) {
     return {
       status: "failure",
-      message: `Invalid value "${update.value}" for field "${update.field}"`,
+      message: `"${update.value}" isn't a valid value for "${caption}". Valid options are: ${allowedValues.join(", ")}.`,
     };
   }
 
   form.updateData(update.field, value);
-  const caption = form.itemOption(update.field)?.label?.text ?? update.field;
   return { status: "success", message: `Updated "${caption}".` };
 }
 
@@ -93,6 +108,9 @@ function buildCombinedSystemPrompt(columnNames) {
   ].join("\n");
 }
 
+const FIELD_OR_VALUE_NOT_FOUND_MESSAGE =
+  "❌ I couldn't find that field or column, or the value you entered isn't valid. Please check the name and value and try again.";
+
 function runCommand(text, { form, gridInstance, aiIntegration }) {
   const columnNames = getGridColumnNames(gridInstance);
   const prompt = `${buildCombinedSystemPrompt(columnNames)}\n\nUser request: "${text}"`;
@@ -109,7 +127,7 @@ function runCommand(text, { form, gridInstance, aiIntegration }) {
       .map((r) => r.message);
 
     if (succeeded.length === 0) {
-      throw new Error("AI response contained no actionable updates");
+      throw new ChatCommandError(FIELD_OR_VALUE_NOT_FOUND_MESSAGE);
     }
 
     return succeeded.join(" ");
@@ -124,10 +142,15 @@ function reportAiResult(promise, pushMessage) {
         text: `✅ Done. ${message}`,
       });
     })
-    .catch(() => {
+    .catch((error) => {
+      const text =
+        error instanceof ChatCommandError
+          ? error.message
+          : "❌ I couldn't reach the AI service. Please check your connection and try again.";
+
       pushMessage({
         author: { id: "ai", name: "AI Assistant" },
-        text: "❌ An unexpected error occurred. Please try again.",
+        text,
       });
     });
 }
