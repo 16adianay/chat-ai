@@ -18,15 +18,14 @@ function createAiIntegration() {
     const response = await aiService.chat.completions.create(params, {
       signal,
     });
-    const result = response.choices[0].message?.content;
 
-    return result;
+    return response.choices[0].message?.content;
   }
 
   async function getAIResponseRecursive(messages, signal) {
     return getAIResponse(messages, signal).catch(async (error) => {
       if (!error.message.includes("Connection error")) {
-        return Promise.reject(error);
+        throw error;
       }
 
       DevExpress.ui.notify({
@@ -45,7 +44,7 @@ function createAiIntegration() {
 
   return new DevExpress.aiIntegration.AIIntegration({
     sendRequest({ prompt }) {
-      const isValidRequest = JSON.stringify(prompt.user).length < 5000;
+      const isValidRequest = JSON.stringify(prompt.user).length < 20000;
       if (!isValidRequest) {
         return {
           promise: Promise.reject(

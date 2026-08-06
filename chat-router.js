@@ -1,13 +1,7 @@
-// Carries a user-ready chat message; callers surface `message` as-is instead of a generic fallback.
 class ChatCommandError extends Error {}
 
 function extractJson(text) {
   const match = text.match(/\{[\s\S]*\}/);
-  if (!match) {
-    throw new ChatCommandError(
-      "❌ I received an unexpected response from the AI. Please rephrase your request and try again.",
-    );
-  }
 
   try {
     return JSON.parse(match[0]);
@@ -30,7 +24,7 @@ function executeAiCommand(text, aiIntegration) {
             reject(error);
           }
         },
-        onError: (error) => reject(error),
+        onError: reject,
       },
     );
   });
@@ -111,7 +105,17 @@ function buildCombinedSystemPrompt(columnNames) {
 const FIELD_OR_VALUE_NOT_FOUND_MESSAGE =
   "❌ I couldn't find that field or column, or the value you entered isn't valid. Please check the name and value and try again.";
 
+const MAX_USER_MESSAGE_LENGTH = 2000;
+
 function runCommand(text, { form, gridInstance, aiIntegration }) {
+  if (text.length > MAX_USER_MESSAGE_LENGTH) {
+    return Promise.reject(
+      new ChatCommandError(
+        "❌ That message is too long for me to process. Please shorten it and try again.",
+      ),
+    );
+  }
+
   const columnNames = getGridColumnNames(gridInstance);
   const prompt = `${buildCombinedSystemPrompt(columnNames)}\n\nUser request: "${text}"`;
 
@@ -120,7 +124,7 @@ function runCommand(text, { form, gridInstance, aiIntegration }) {
     const actions = Array.isArray(parsed.actions) ? parsed.actions : [];
 
     const formResults = updates.map((update) => applyFormUpdate(form, update));
-    const gridResults = applyGridActions(gridInstance, actions);
+    const gridResults = applyGridActions(gridInstance, actions, text);
 
     const succeeded = [...formResults, ...gridResults]
       .filter((r) => r.status === "success")

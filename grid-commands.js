@@ -2,10 +2,17 @@ const gridCommands = {
   filterValue: {
     description:
       "Apply a filter to a single column. Pass column (dataField), operator, and value. " +
-      'Supported operators: "=", "<>", "<", "<=", ">", ">=", "contains", "notcontains", "startswith", "endswith". ' +
+      'Supported operators: "=", "<>", "<", "<=", ">", ">=", "contains", "notcontains", "startswith", "endswith", "anyof". ' +
       'Date values must be in "YYYY-MM-DDTHH:mm:ss" format (e.g. "2024-05-10T00:00:00"). ' +
       'The "Completion" column is a boolean (task completed or not): use operator "=" with value true for ' +
-      "completed tasks, or value false for tasks that are not completed.",
+      "completed tasks, or value false for tasks that are not completed. " +
+      "To filter a date column by a year and/or month (the same thing the grid's own header filter does " +
+      'when you pick a year then a month), use operator "anyof" with value as an array of one or more ' +
+      'strings in "YYYY" (whole year, e.g. "2023") or "YYYY/M" (whole month, month is 1-12 with no leading ' +
+      'zero, e.g. "2023/5" for May 2023) format, e.g. {"column": "DueDate", "operator": "anyof", "value": ' +
+      '["2023/5"]} for "May 2023". Only use "anyof" when the year is known; if the year is missing and ' +
+      'cannot be inferred from elsewhere in the request (e.g. plain "in May" with no year anywhere), do ' +
+      "not guess it - omit this action entirely instead of adding it with a made-up year.",
     schema: {
       type: "object",
       properties: {
@@ -23,16 +30,23 @@ const gridCommands = {
             "notcontains",
             "startswith",
             "endswith",
+            "anyof",
           ],
         },
-        value: { type: ["string", "number", "boolean"] },
+        value: {
+          anyOf: [
+            { type: ["string", "number", "boolean"] },
+            { type: "array", items: { type: "string" } },
+          ],
+        },
       },
       required: ["column", "operator", "value"],
     },
-    execute(grid, args) {
+    execute(grid, args, rawText) {
       const { column, failure } = getColumnOrFail(grid, args.column);
       if (failure) return failure;
 
+      const caption = column.caption ?? args.column;
       let { value } = args;
 
       if (args.column === "Completion" && typeof value !== "boolean") {
@@ -52,16 +66,30 @@ const gridCommands = {
         }
       }
 
+      if (args.operator === "anyof" && Array.isArray(value)) {
+        const mentionedYears = new Set(String(rawText ?? "").match(/\b\d{4}\b/g));
+        const hasUngroundedYear = value.some(
+          (entry) => !mentionedYears.has(String(entry).split("/")[0]),
+        );
+
+        if (hasUngroundedYear) {
+          return {
+            status: "failure",
+            message: `I couldn't find that field or column, or the value you entered isn't valid.`,
+          };
+        }
+      }
+
       try {
         grid.option("filterValue", [args.column, args.operator, value]);
         return {
           status: "success",
-          message: `Filtered by "${column.caption ?? args.column}".`,
+          message: `Filtered by "${caption}".`,
         };
       } catch {
         return {
           status: "failure",
-          message: `I couldn't apply that filter to "${column.caption ?? args.column}". Check that the value matches the column's type.`,
+          message: `I couldn't apply that filter to "${caption}". Check that the value matches the column's type.`,
         };
       }
     },
@@ -98,6 +126,8 @@ const gridCommands = {
       const { column, failure } = getColumnOrFail(grid, args.column);
       if (failure) return failure;
 
+      const caption = column.caption ?? args.column;
+
       try {
         grid.columnOption(
           args.column,
@@ -105,7 +135,6 @@ const gridCommands = {
           args.sortOrder === "none" ? undefined : args.sortOrder,
         );
 
-        const caption = column.caption ?? args.column;
         const message =
           args.sortOrder === "none"
             ? `Cleared sorting on "${caption}".`
@@ -115,7 +144,7 @@ const gridCommands = {
       } catch {
         return {
           status: "failure",
-          message: `I couldn't sort by "${column.caption ?? args.column}".`,
+          message: `I couldn't sort by "${caption}".`,
         };
       }
     },
@@ -151,9 +180,10 @@ const gridCommands = {
       const { column, failure } = getColumnOrFail(grid, args.column);
       if (failure) return failure;
 
+      const caption = column.caption ?? args.column;
+
       try {
         grid.columnOption(args.column, "visible", args.visible);
-        const caption = column.caption ?? args.column;
         return {
           status: "success",
           message: args.visible
@@ -163,7 +193,7 @@ const gridCommands = {
       } catch {
         return {
           status: "failure",
-          message: `I couldn't change the visibility of "${column.caption ?? args.column}".`,
+          message: `I couldn't change the visibility of "${caption}".`,
         };
       }
     },
@@ -229,7 +259,7 @@ function getGridColumnNames(gridInstance) {
   return gridInstance.getVisibleColumns().map((col) => col.dataField);
 }
 
-function applyGridActions(grid, actions) {
+function applyGridActions(grid, actions, rawText) {
   return actions.map((action) => {
     const command = gridCommands[action.name];
 
@@ -240,6 +270,6 @@ function applyGridActions(grid, actions) {
       };
     }
 
-    return command.execute(grid, action.args ?? {});
+    return command.execute(grid, action.args ?? {}, rawText);
   });
 }

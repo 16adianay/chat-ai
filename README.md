@@ -125,7 +125,7 @@ public `dxDataGrid` methods:
 
 | Command | Purpose | Public API used |
 |---|---|---|
-| `filterValue` | Filter one column by an operator/value (`=`, `<>`, `<`, `<=`, `>`, `>=`, `contains`, `notcontains`, `startswith`, `endswith`). Dates are parsed from ISO-like strings; the boolean `Completion` column accepts `true`/`false`/`"completed"`/`100`/etc. | `grid.option('filterValue', [column, operator, value])` |
+| `filterValue` | Filter one column by an operator/value (`=`, `<>`, `<`, `<=`, `>`, `>=`, `contains`, `notcontains`, `startswith`, `endswith`). Dates are parsed from ISO-like strings; the boolean `Completion` column accepts `true`/`false`/`"completed"`/`100`/etc. A date column can also be filtered by year/month with `anyof` and an array of `"YYYY"` or `"YYYY/M"` strings (e.g. `["2023/5"]` for May 2023) — the same mechanism the grid's own header filter uses when you pick a year then a month. | `grid.option('filterValue', [column, operator, value])`, e.g. `['DueDate', 'anyof', ['2023/5']]` |
 | `clearFilter` | Clears all active filters. | `grid.clearFilter()` |
 | `sorting` | Sorts a column `asc`/`desc`, or clears sorting on it with `"none"`. | `grid.columnOption(column, 'sortOrder', value)` |
 | `clearSorting` | Removes sorting from every column. | `grid.clearSorting()` |
