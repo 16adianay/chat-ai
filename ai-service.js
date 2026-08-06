@@ -1,3 +1,34 @@
+function sanitizeSmartPasteResponse(rawText, fieldNames) {
+  if (typeof rawText !== "string" || fieldNames.length === 0) {
+    return rawText;
+  }
+
+  const escapedNames = fieldNames.map((name) =>
+    name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+  );
+  const fieldMarker = new RegExp(`(?:${escapedNames.join("|")}):::`, "g");
+  const matches = [...rawText.matchAll(fieldMarker)];
+  if (matches.length === 0) {
+    return rawText;
+  }
+
+  const pairs = matches.map((match, index) => {
+    const name = match[0].slice(0, -3);
+    const valueStart = match.index + match[0].length;
+    const valueEnd =
+      index + 1 < matches.length ? matches[index + 1].index : rawText.length;
+
+    const value = rawText
+      .slice(valueStart, valueEnd)
+      .replace(/;;;\s*$/, "")
+      .trim();
+
+    return `${name}:::${value}`;
+  });
+
+  return pairs.join(";;;");
+}
+
 function createAiIntegration() {
   const aiService = new AzureOpenAI({
     dangerouslyAllowBrowser: true,
@@ -12,7 +43,7 @@ function createAiIntegration() {
       messages,
       model: deployment,
       max_completion_tokens: 1000,
-      temperature: 0.7,
+temperature: 0,
     };
 
     const response = await aiService.chat.completions.create(params, {
@@ -43,7 +74,7 @@ function createAiIntegration() {
   }
 
   return new DevExpress.aiIntegration.AIIntegration({
-    sendRequest({ prompt }) {
+    sendRequest({ prompt, data }) {
       const isValidRequest = JSON.stringify(prompt.user).length < 20000;
       if (!isValidRequest) {
         return {
@@ -62,7 +93,14 @@ function createAiIntegration() {
         { role: "system", content: prompt.system ?? "" },
         { role: "user", content: prompt.user },
       ];
-      const promise = getAIResponseRecursive(aiPrompt, signal);
+      const fieldNames = Array.isArray(data?.fields)
+        ? data.fields.map((field) => field.name)
+        : [];
+      const promise = getAIResponseRecursive(aiPrompt, signal).then((text) =>
+        fieldNames.length > 0
+          ? sanitizeSmartPasteResponse(text, fieldNames)
+          : text,
+      );
 
       return {
         promise,

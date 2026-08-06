@@ -162,15 +162,31 @@ $(function () {
       formData: employee,
       colCount: 3,
       labelLocation: "top",
+      aiIntegration,
       items: [
         {
           dataField: "Prefix",
           label: { text: "Title" },
           editorType: "dxSelectBox",
           editorOptions: { items: titles },
+          aiOptions: {
+            instruction:
+              "Only fill this field with one of the allowed values (Mr., Mrs., Ms.) if a " +
+              "title is explicitly mentioned in the text. Never use this field for any part " +
+              "of a person's name.",
+          },
         },
         { dataField: "FirstName", label: { text: "First Name" } },
-        { dataField: "LastName", label: { text: "Last Name" } },
+        {
+          dataField: "LastName",
+          label: { text: "Last Name" },
+          aiOptions: {
+            instruction:
+              "If the text gives a full person name (e.g. 'customer name', 'employee name') " +
+              "without separately labeled first/last names, use only the first word as First " +
+              "Name and the rest of the name as Last Name.",
+          },
+        },
         {
           dataField: "Position",
           editorType: "dxSelectBox",

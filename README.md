@@ -21,32 +21,32 @@ Try prompts like:
 
 ## How it works — request lifecycle
 
-In plain words:
+In plain words, every chat message triggers two independent operations in parallel:
 
-1. **Build a single combined system prompt** describing both the Form's fields and the
-   DataGrid's commands, and ask the AI to figure out — in one call — which part(s) of the
-   user's message apply to which widget, responding with **strict JSON** (no prose, no code
-   fences) shaped like `{"updates": [...], "actions": [...]}`.
-2. **Parse and validate** the JSON response against known fields/columns/values.
-3. **Apply** each individual update/action through the widget's public API
-   (`form.updateData()`, `grid.option('filterValue', ...)`, `grid.columnOption(...)`, etc).
-4. **Report** one combined chat message back to the user summarizing what succeeded.
+1. **Form**: the raw message text is handed straight to the Form's built-in
+   [Smart Paste](https://js.devexpress.com/jQuery/Documentation/ApiReference/UI_Components/dxForm/Methods/#smartPastetext)
+   feature (`form.smartPaste(text)`), which uses the Form's own `aiIntegration` to figure out
+   which fields (if any) the text is about and populates them directly — no custom prompt or
+   schema needed on our side.
+2. **Grid**: a system prompt describing the DataGrid's commands is sent to the AI, which
+   responds with **strict JSON** (no prose, no code fences) shaped like `{"actions": [...]}`.
+   That response is parsed/validated and each action is applied through the grid's public API
+   (`grid.option('filterValue', ...)`, `grid.columnOption(...)`, etc).
 
-There is no separate local classification step — the same AI call that extracts the
-commands also implicitly decides whether the message is about the form, the grid, or both
-(an unrelated widget simply gets an empty `updates`/`actions` array).
+Both operations report their own success/failure per field/action, and a single combined chat
+message summarizes everything that succeeded across both.
 
 ## File-by-file overview
 
 | File | Responsibility |
 |---|---|
 | [index.html](index.html) | Page shell. Loads DevExtreme/jQuery from CDN, the OpenAI SDK from esm.sh, and all local scripts in dependency order. Contains the demo's inline CSS. |
-| [data.js](data.js) | Static demo data and config: Azure OpenAI connection settings (`deployment`, `endpoint`, `apiKey`, `apiVersion`), the `employee` record and `tasks` list bound to the Form/DataGrid, dropdown option lists (`titles`, `states`, `positions`), grid `Priority` colors, and `formFields` (metadata describing each form field: name, human description, allowed values — used to build the AI prompt and to validate AI responses). |
-| [index.js](index.js) | App bootstrap. Creates the `dxChat` popup, the `dxForm`, and the `dxDataGrid`, wires up the floating action button, and forwards every submitted chat message straight to `routeMessage`. |
-| [chat-router.js](chat-router.js) | The orchestration layer. Builds the combined prompt, makes the single AI call, parses/validates its JSON response, applies the resulting updates/actions to the form/grid, and reports a single chat message back to the user. See [chat-router.js deep dive](#chat-routerjs-deep-dive). |
-| [form-commands.js](form-commands.js) | Builds the *form* section of the combined prompt: a description of the Form's available fields (from `formFields` in `data.js`). |
-| [grid-commands.js](grid-commands.js) | Defines the registry of grid commands (`filterValue`, `clearFilter`, `sorting`, `clearSorting`, `columnsVisibility`), each with a JSON Schema for its arguments and an `execute(grid, args)` function that calls the corresponding public DataGrid API. Also builds the *grid* section of the combined prompt and applies a batch of AI-returned `actions`. |
-| [ai-service.js](ai-service.js) | Wraps the Azure OpenAI JS SDK behind DevExtreme's `AIIntegration` interface (`sendRequest({ prompt }) -> { promise, abort }`), including basic retry-on-rate-limit handling. This is the only file that talks to the network/LLM. |
+| [data.js](data.js) | Static demo data and config: Azure OpenAI connection settings (`deployment`, `endpoint`, `apiKey`, `apiVersion`), the `employee` record and `tasks` list bound to the Form/DataGrid, dropdown option lists (`titles`, `states`, `positions`), and grid `Priority` colors. |
+| [index.js](index.js) | App bootstrap. Creates the `dxChat` popup, the `dxForm` (wired to the shared `aiIntegration` for Smart Paste), and the `dxDataGrid`, wires up the floating action button, and forwards every submitted chat message straight to `routeMessage`. |
+| [chat-router.js](chat-router.js) | The orchestration layer. Kicks off the Form's Smart Paste and the grid's AI call in parallel, parses/validates the grid JSON response, applies the resulting actions, and reports a single chat message back to the user. See [chat-router.js deep dive](#chat-routerjs-deep-dive). |
+| [form-commands.js](form-commands.js) | Wraps `form.smartPaste(text)` in a Promise (`applyFormSmartPaste`) that resolves once the Form's `smartPasted` event fires, reporting success/failure based on how many fields the AI populated. |
+| [grid-commands.js](grid-commands.js) | Defines the registry of grid commands (`filterValue`, `clearFilter`, `sorting`, `clearSorting`, `columnsVisibility`), each with a JSON Schema for its arguments and an `execute(grid, args)` function that calls the corresponding public DataGrid API. Also builds the *grid* section of the AI prompt and applies a batch of AI-returned `actions`. |
+| [ai-service.js](ai-service.js) | Wraps the Azure OpenAI JS SDK behind DevExtreme's `AIIntegration` interface (`sendRequest({ prompt }) -> { promise, abort }`), including basic retry-on-rate-limit handling. This is the only file that talks to the network/LLM. The same instance is shared by the chat's grid requests and by the Form's Smart Paste. |
 
 Load order in `index.html` matters: `data.js` must load before `form-commands.js`/
 `grid-commands.js` (they reference its constants), and `chat-router.js` must load after both
@@ -54,57 +54,52 @@ command modules (it calls their `build*PromptSection`/`apply*` functions).
 
 There used to be a separate `intent-classifier.js` that decided locally (via keyword
 matching) whether a message was about the form, the grid, or both, before sending up to two
-separate AI prompts. That file has been removed — the AI now receives one combined prompt
-describing both widgets and decides for itself what each part of the message applies to, in
-a single request.
+separate AI prompts. That file has been removed. Form updates are now handled entirely by
+the Form's own built-in Smart Paste feature instead of a custom prompt/schema; only grid
+commands still go through our own AI call.
 
 ## `chat-router.js` deep dive
 
-### Combined requests (`runCommand`)
+### Requests (`runCommand`)
 
-1. Builds one combined system prompt via `buildCombinedSystemPrompt(columnNames)`, which
-   concatenates `buildFormPromptSection()` (from `form-commands.js`) and
-   `buildGridPromptSection(columnNames)` (from `grid-commands.js`, columns read live via
-   `getGridColumnNames`), plus a single JSON Schema built by `buildCombinedResponseSchema()`
-   (which reuses the grid's `actions` schema from `buildGridResponseSchema()` and adds an
-   `updates` array for form fields).
-2. Sends that prompt + the user's text to the AI in **one** request. Expects back
-   `{"updates": [{"field": "...", "value": "..."}], "actions": [{"name": "<command>", "args": {...}}]}`.
-   A single message can populate both arrays at once (e.g. *"change State to Texas and
-   filter tasks by Priority High"*), just `updates` (form-only), just `actions` (grid-only),
-   or neither (rejected, see below).
-3. Each form update is applied independently via `applyFormUpdate(form, update)`:
-   - Unknown field name → `{status: "failure"}`.
-   - Value not in the field's allowed list (e.g. an invalid `Position`) → `{status: "failure"}`.
-   - Otherwise calls `form.updateData(field, value)` and returns `{status: "success", message: 'Updated "<caption>".'}`
-     (the caption comes from `form.itemOption(field)?.label?.text`, falling back to the raw
-     `dataField` if no label is configured).
-4. Each grid action is applied independently via `applyGridActions(gridInstance, actions)`,
+1. Kicks off two independent operations **in parallel** for every message:
+   - **Form**: `applyFormSmartPaste(form, text)` (from `form-commands.js`) calls
+     `form.smartPaste(text)`, which uses the Form's own `aiIntegration` to decide which
+     fields (if any) the text is about and populates them directly — DevExtreme handles the
+     prompt/schema/parsing internally, we don't build any of that ourselves.
+   - **Grid**: builds a system prompt via `buildGridSystemPrompt(columnNames)` (which wraps
+     `buildGridPromptSection(columnNames)` from `grid-commands.js`, columns read live via
+     `getGridColumnNames`, plus the JSON Schema from `buildGridResponseSchema()`) and sends
+     it + the user's text to the AI. Expects back
+     `{"actions": [{"name": "<command>", "args": {...}}]}`.
+2. `applyFormSmartPaste` resolves once the Form's `smartPasted` event fires: if the AI
+   populated at least one field, `{status: "success", message: "Updated the form."}`;
+   otherwise `{status: "failure"}`.
+3. Each grid action is applied independently via `applyGridActions(gridInstance, actions)`,
    which maps `action.name` to an entry in the `gridCommands` registry and calls its
-   `execute(grid, args)`, returning `{status: "success"|"failure", message}` per action —
-   **the same tolerant, per-item reporting used for form updates**, not an all-or-nothing
-   batch.
-5. **Only successful updates/actions are reported as "Done"**, regardless of whether they
-   came from the form or the grid. All success messages (form + grid) are joined together.
-   If **none** succeeded — whether because the AI returned no updates/actions, an unknown
-   field/column was referenced, or an invalid value was given — the whole request is
-   rejected with one universal message (see below) instead of listing every reason.
+   `execute(grid, args)`, returning `{status: "success"|"failure", message}` per action — not
+   an all-or-nothing batch.
+4. **Only successful form/grid results are reported as "Done"**. All success messages are
+   joined together. If **none** succeeded — the Form found nothing to paste, an unknown
+   column was referenced, or the grid AI call/response failed — the whole request is
+   rejected with one message (the specific grid AI error if there was one, otherwise the
+   generic "couldn't find that field or column" message) instead of listing every reason.
 
-This means a request like `"update Name to Diana and change Position to ASD"` (an invalid
-position) will apply the name change and reply `✅ Done. Updated "Name".`, silently ignoring
-the invalid `Position` request — and the same is true for grid actions: a message with one
-valid and one invalid grid command still applies and reports only the valid one.
+This means a message with one valid and one invalid grid command still applies and reports
+only the valid one, and a form Smart Paste that only matches some of the pasted fields still
+reports success as long as at least one field was populated.
 
 ### Reporting (`reportAiResult` / `routeMessage`)
 
-`routeMessage` runs the single combined request's promise via `reportAiResult`, which pushes
-one chat message:
+`routeMessage` runs `runCommand`'s combined promise via `reportAiResult`, which pushes one
+chat message:
 
-- If **at least one** update/action succeeded → `✅ Done. <joined success messages>`.
-- If **none** succeeded — the AI returned nothing relevant, referenced an unknown field/
-  column, or gave an invalid value → `❌ I couldn't find that field or column, or the value
-  you entered isn't valid. Please check the name and value and try again.`
-- If the AI's response couldn't be parsed as JSON → `❌ I received an unexpected response
+- If **at least one** form field or grid action succeeded → `✅ Done. <joined success messages>`.
+- If **none** succeeded — Smart Paste found nothing to populate and the grid AI call
+  returned nothing relevant or referenced an unknown column → `❌ I couldn't find that field
+  or column, or the value you entered isn't valid. Please check the name and value and try
+  again.` (or the grid AI call's specific error, if it had one).
+- If the grid AI's response couldn't be parsed as JSON → `❌ I received an unexpected response
   from the AI. Please rephrase your request and try again.`
 - If the outgoing request was rejected for being too long → `❌ That message is too long for
   me to process. Please shorten it and try again.`

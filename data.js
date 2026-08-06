@@ -84,24 +84,3 @@ const tasks = [
     EmployeeID: 1,
   },
 ];
-
-const formFields = [
-  {
-    name: "Prefix",
-    description: `Title. Must be one of: ${titles.join(", ")}.`,
-    values: titles,
-  },
-  { name: "FirstName", description: "First name. Free text value." },
-  { name: "LastName", description: "Last name. Free text value." },
-  {
-    name: "Position",
-    description: `Job position. Must be one of: ${positions.join(", ")}.`,
-    values: positions,
-  },
-  {
-    name: "State",
-    description: `US state. Must be one of: ${states.join(", ")}.`,
-    values: states,
-  },
-  { name: "BirthDate", description: "Birth date." },
-];
