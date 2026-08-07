@@ -65,8 +65,8 @@ $(function () {
   popupInstance = $("#aiAssistantContainer")
     .dxPopup({
       title: "AI Assistant",
-      width: 420,
-      height: "100%",
+      width: 400,
+      height: "90%",
       dragEnabled: true,
       resizeEnabled: true,
       showCloseButton: true,
@@ -76,6 +76,7 @@ $(function () {
         my: "right top",
         at: "right top",
         of: ".demo-container",
+        offset: "-20 20",
       },
       toolbarItems: [
         {
@@ -225,8 +226,8 @@ $(function () {
             $("<div>")
               .css({
                 background: colors[options.value],
-                borderRadius: "12px",
-                padding: "2px 10px",
+                borderRadius: "24px",
+                padding: "2px 8px",
                 display: "inline-block",
                 textAlign: "center",
               })
