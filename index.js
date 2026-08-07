@@ -1,7 +1,18 @@
 $(function () {
   DevExpress.config({ 
-    editorStylingMode: 'filled' // or 'outlined' | 'underlined'
+    editorStylingMode: 'filled',
   });
+
+  DevExpress.config({
+  floatingActionButtonConfig: {
+    position: {
+      my: "right bottom",
+      at: "right bottom",
+      of: "#grid-container",
+      offset: "-16 -16",
+    }
+  }
+});
 
   DevExpress.localization.loadMessages({
     en: {
@@ -77,10 +88,10 @@ $(function () {
       shading: false,
       visible: false,
       onHiding() {
-       $(".dx-fa-button").css("visibility", "visible");
+       fabBtn.option("visible", true);
       },
       onShowing() {
-        $(".dx-fa-button").css("visibility", "hidden");
+        fabBtn.option("visible", false);
       },
       position: {
         my: "right top",
@@ -264,17 +275,11 @@ $(function () {
     })
     .dxDataGrid("instance");
 
-  $("#ai-fab").dxSpeedDialAction({
+  let fabBtn = $("#ai-fab").dxSpeedDialAction({
     icon: "sparkle",
-    closeIcon: "close",
     label: "AI Assistant",
-    position: {
-      my: "right bottom",
-      at: "right bottom",
-      of: "#grid-container",
-    },
     onClick: function (e) {
       popupInstance.toggle();
     },
-  });
+  }).dxSpeedDialAction("instance");
 });
