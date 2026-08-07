@@ -1,4 +1,8 @@
 $(function () {
+  DevExpress.config({ 
+    editorStylingMode: 'filled' // or 'outlined' | 'underlined'
+  });
+
   DevExpress.localization.loadMessages({
     en: {
       "dxChat-textareaPlaceholder": "Enter a prompt...",
@@ -72,6 +76,12 @@ $(function () {
       showCloseButton: true,
       shading: false,
       visible: false,
+      onHiding() {
+       $(".dx-fa-button").css("visibility", "visible");
+      },
+      onShowing() {
+        $(".dx-fa-button").css("visibility", "hidden");
+      },
       position: {
         my: "right top",
         at: "right top",
@@ -263,7 +273,7 @@ $(function () {
       at: "right bottom",
       of: "#grid-container",
     },
-    onClick: function () {
+    onClick: function (e) {
       popupInstance.toggle();
     },
   });
