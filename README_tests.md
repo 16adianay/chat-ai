@@ -43,21 +43,6 @@ npx playwright show-report
 Terminal output ends with a summary line (`5 passed` / `x passed, y failed`).
 On failure, a screenshot, video, and trace are saved (see the HTML report).
 
-## ⚠️ These tests call a real AI
-
-`ai-service.js` sends prompts to the Azure OpenAI deployment configured in
-`data.js` (`endpoint`, `apiKey`, `deployment`). That means:
-
-- you need a **valid, working key** in `data.js`,
-- every run **costs quota/money**,
-- responses aren't perfectly deterministic — tests assert on **resulting
-  app state** (form fields, grid sort/filter options), not on exact chat
-  wording, to stay robust to small model phrasing differences.
-
-The key committed in `data.js` should be treated as already exposed if this
-repo (or a GitHub Pages deployment of it) is public — rotate it and use a
-disposable/dev key for test runs.
-
 ## Test scenarios
 
 | # | Prompt | Assertion |
