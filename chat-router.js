@@ -75,9 +75,13 @@ function runCommand(text, { form, gridInstance, aiIntegration }) {
     })
     .catch((error) => ({ results: [], error }));
 
-  const formResultsPromise = applyFormSmartPaste(form, text).then((result) => [
-    result,
-  ]);
+  const formResultsPromise = (() => {
+    const clearResult = applyFormFieldClear(form, text);
+    if (clearResult) {
+      return Promise.resolve([clearResult]);
+    }
+    return applyFormSmartPaste(form, text).then((result) => [result]);
+  })();
 
   return Promise.all([formResultsPromise, gridResultsPromise]).then(
     ([formResults, { results: gridResults, error: gridError }]) => {

@@ -1,18 +1,18 @@
 $(function () {
-  DevExpress.config({ 
-    editorStylingMode: 'filled',
+  DevExpress.config({
+    editorStylingMode: "filled",
   });
 
   DevExpress.config({
-  floatingActionButtonConfig: {
-    position: {
-      my: "right bottom",
-      at: "right bottom",
-      of: "#grid-container",
-      offset: "-16 -16",
-    }
-  }
-});
+    floatingActionButtonConfig: {
+      position: {
+        my: "right bottom",
+        at: "right bottom",
+        of: "#grid-container",
+        offset: "-16 -16",
+      },
+    },
+  });
 
   DevExpress.localization.loadMessages({
     en: {
@@ -88,7 +88,7 @@ $(function () {
       shading: false,
       visible: false,
       onHiding() {
-       fabBtn.option("visible", true);
+        fabBtn.option("visible", true);
       },
       onShowing() {
         fabBtn.option("visible", false);
@@ -190,7 +190,7 @@ $(function () {
           dataField: "Prefix",
           label: { text: "Title" },
           editorType: "dxSelectBox",
-          editorOptions: { items: titles },
+          editorOptions: { items: titles, searchEnabled: true },
           aiOptions: {
             instruction:
               "Only fill this field with one of the allowed values (Mr., Mrs., Ms.) if a " +
@@ -198,7 +198,16 @@ $(function () {
               "of a person's name.",
           },
         },
-        { dataField: "FirstName", label: { text: "First Name" } },
+        {
+          dataField: "FirstName",
+          label: { text: "First Name" },
+          aiOptions: {
+            instruction:
+              "Only fill this field if the text clearly refers to a person's given name. " +
+              "Never use grid/task-related words like Subject, Priority, Status, Due Date, " +
+              "Completion, or generic verbs like sort/filter/show as a name.",
+          },
+        },
         {
           dataField: "LastName",
           label: { text: "Last Name" },
@@ -212,17 +221,32 @@ $(function () {
         {
           dataField: "Position",
           editorType: "dxSelectBox",
-          editorOptions: { items: positions },
+          editorOptions: { items: positions, searchEnabled: true },
+          aiOptions: {
+            instruction:
+              "Only fill this field with one of the allowed job position values if the text " +
+              "explicitly refers to the employee's own job title/role.",
+          },
         },
         {
           dataField: "State",
           editorType: "dxSelectBox",
-          editorOptions: { items: states },
+          editorOptions: { items: states, searchEnabled: true },
+          aiOptions: {
+            instruction:
+              "Only fill this field with one of the allowed US state values if the text " +
+              "explicitly refers to the employee's home/office state",
+          },
         },
         {
           dataField: "BirthDate",
           editorType: "dxDateBox",
           editorOptions: { displayFormat: "M/d/yyyy" },
+          aiOptions: {
+            instruction:
+              "Only fill this field if the text explicitly refers to the employee's own birth " +
+              "date or date of birth.",
+          },
         },
       ],
     })
@@ -275,11 +299,13 @@ $(function () {
     })
     .dxDataGrid("instance");
 
-  let fabBtn = $("#ai-fab").dxSpeedDialAction({
-    icon: "sparkle",
-    label: "AI Assistant",
-    onClick: function (e) {
-      popupInstance.toggle();
-    },
-  }).dxSpeedDialAction("instance");
+  let fabBtn = $("#ai-fab")
+    .dxSpeedDialAction({
+      icon: "sparkle",
+      label: "AI Assistant",
+      onClick: function (e) {
+        popupInstance.toggle();
+      },
+    })
+    .dxSpeedDialAction("instance");
 });
