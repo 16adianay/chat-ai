@@ -71,7 +71,18 @@ function runCommand(text, { form, gridInstance, aiIntegration }) {
   const gridResultsPromise = executeAiCommand(prompt, aiIntegration)
     .then((parsed) => {
       const actions = Array.isArray(parsed.actions) ? parsed.actions : [];
-      return { results: applyGridActions(gridInstance, actions, text), error: null };
+
+      if (actions.length === 0) {
+        return { results: [], error: null };
+      }
+
+      gridInstance?.beginCustomLoading();
+
+      try {
+        return { results: applyGridActions(gridInstance, actions, text), error: null };
+      } finally {
+        gridInstance?.endCustomLoading();
+      }
     })
     .catch((error) => ({ results: [], error }));
 
