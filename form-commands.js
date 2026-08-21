@@ -1,70 +1,39 @@
 const SMART_PASTE_TIMEOUT_MS = 30000;
 
-const CLEAR_PATTERNS = [
-  /^(?:clear|reset|remove|unset)\s+(?:the\s+)?(.+?)(?:\s+field)?$/i,
-  /^set\s+(.+?)\s+to\s+(?:empty|blank|none|null|nothing|"")$/i,
-  /^(?:empty|blank)\s+(?:out\s+)?(?:the\s+)?(.+?)(?:\s+field)?$/i,
-];
-
-const CLEAR_ALL_PATTERN =
-  /^(?:clear|reset)\s+(?:all\s+)?(?:the\s+)?fields?$|^reset\s+(?:the\s+)?form$/i;
-
-function buildFieldAliasMap(form) {
-  const aliases = new Map();
-  const items = form.option("items") || [];
-
-  const register = (key, dataField) => {
-    if (!key) return;
-    aliases.set(key.trim().toLowerCase(), dataField);
-  };
-
-  items.forEach((item) => {
-    if (!item.dataField) return;
-    register(item.dataField, item.dataField);
-    register(item.label?.text, item.dataField);
-    register(
-      item.dataField.replace(/([a-z])([A-Z])/g, "$1 $2"),
-      item.dataField,
-    );
-  });
-
-  return aliases;
+function getFormFieldOptions(form) {
+  return (form.option("items") || [])
+    .filter((item) => item.dataField)
+    .map((item) => ({
+      dataField: item.dataField,
+      label: item.label?.text ?? item.dataField,
+    }));
 }
 
-function resolveFieldName(fragment, aliasMap) {
-  const normalized = fragment.trim().toLowerCase().replace(/\s+/g, " ");
-  return aliasMap.get(normalized) ?? null;
-}
+function applyFormClearAction(form, formAction) {
+  if (!formAction || formAction.type === "smart_paste") return null;
 
-function applyFormFieldClear(form, text) {
-  const trimmed = text.trim();
-
-  if (CLEAR_ALL_PATTERN.test(trimmed)) {
+  if (formAction.type === "clear_all") {
     form.clear();
     return { status: "success", message: "Cleared all form fields." };
   }
 
-  for (const pattern of CLEAR_PATTERNS) {
-    const match = trimmed.match(pattern);
-    if (!match) continue;
+  if (formAction.type === "clear_field") {
+    const isKnownField = getFormFieldOptions(form).some(
+      (f) => f.dataField === formAction.field,
+    );
 
-    const aliasMap = buildFieldAliasMap(form);
-    const dataField = resolveFieldName(match[1], aliasMap);
-
-    if (dataField === undefined) return null;
-
-    if (!dataField) {
+    if (!isKnownField) {
       return {
         status: "failure",
-        message: `I couldn't find a field named "${match[1].trim()}" to clear.`,
+        message: `I couldn't find a field named "${formAction.field}" to clear.`,
       };
     }
 
     setTimeout(() => {
-      form.updateData(dataField, null);
+      form.updateData(formAction.field, null);
     }, 1000);
 
-    return { status: "success", message: `Cleared ${dataField}.` };
+    return { status: "success", message: `Cleared ${formAction.field}.` };
   }
 
   return null;

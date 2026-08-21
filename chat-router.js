@@ -37,9 +37,9 @@ function buildGridSystemPrompt(columnNames) {
       "position, state, birth date) that is handled elsewhere - it is NOT part of this grid.",
     "Figure out what the user's request is about and translate ONLY the part that is clearly about " +
       "the task grid into the matching commands described below.",
-    'Do NOT create a grid action just because a value could technically fit a text column (e.g. ' +
+    "Do NOT create a grid action just because a value could technically fit a text column (e.g. " +
       '"Subject"). If the request is about the profile form (e.g. mentions a person\'s name, title, ' +
-      "job position, state, or birth date), leave that part out of \"actions\" entirely - even if no " +
+      'job position, state, or birth date), leave that part out of "actions" entirely - even if no ' +
       "other part of the request is grid-related.",
     "",
     buildGridPromptSection(columnNames),
@@ -55,8 +55,106 @@ const FIELD_OR_VALUE_NOT_FOUND_MESSAGE =
   "❌ I couldn't find that field or column, or the value you entered isn't valid. Please check the name and value and try again.";
 
 const MAX_USER_MESSAGE_LENGTH = 2000;
+const ROUTER_TARGETS = new Set(["form", "grid", "mixed", "none"]);
+const FORM_ACTION_TYPES = new Set(["clear_field", "clear_all", "smart_paste"]);
 
-function runCommand(text, { form, gridInstance, aiIntegration }) {
+function buildFormActionPromptSection(form) {
+  const fieldList = getFormFieldOptions(form)
+    .map((f) => `${f.dataField} (${f.label})`)
+    .join(", ");
+
+  return [
+    `Form fields (dataField and label): ${fieldList}.`,
+    'If the request is about the form, also set "formAction" to one of:',
+    '- {"type": "clear_field", "field": "<dataField>"} to clear one specific field.',
+    '- {"type": "clear_all"} to clear/reset the whole form.',
+    '- {"type": "smart_paste"} to fill in form data from the request text.',
+    'Set "formAction" to null if the request is not about the form.',
+  ].join("\n");
+}
+
+async function classifyRequest(text, aiIntegration, form) {
+  if (!aiIntegration) {
+    return { target: "mixed", formAction: null };
+  }
+
+  const prompt = [
+    "Decide which UI area should handle the user's request.",
+    "Return STRICT JSON only, without markdown fences.",
+    'Format: {"target": "form" | "grid" | "mixed" | "none", "formAction": <see below> | null, "reason": "short explanation" }',
+    "Rules:",
+    "- Use form for profile/customer form updates, field clearing, or smart-paste style data entry.",
+    "- Use grid for sorting, filtering, showing/hiding columns, or other DataGrid tasks.",
+    "- Use mixed when the request clearly asks for both a form change and a grid change together.",
+    "- Use none when the request is unrelated to both areas.",
+    "If you are not confident, return mixed.",
+    "",
+    buildFormActionPromptSection(form),
+    "",
+    `User request: "${text}"`,
+  ].join("\n");
+
+  try {
+    const parsed = await executeAiCommand(prompt, aiIntegration);
+    const target = String(parsed?.target ?? "mixed")
+      .trim()
+      .toLowerCase();
+    const rawFormAction = parsed?.formAction;
+    const formAction =
+      rawFormAction && FORM_ACTION_TYPES.has(rawFormAction.type)
+        ? rawFormAction
+        : null;
+
+    return {
+      target: ROUTER_TARGETS.has(target) ? target : "mixed",
+      formAction,
+    };
+  } catch {
+    return { target: "mixed", formAction: null };
+  }
+}
+
+function buildGridResultsPromise(gridInstance, aiIntegration, text) {
+  const columnNames = getGridColumnNames(gridInstance);
+  const prompt = `${buildGridSystemPrompt(columnNames)}\n\nUser request: "${text}"`;
+
+  return executeAiCommand(prompt, aiIntegration)
+    .then((parsed) => {
+      const actions = Array.isArray(parsed.actions) ? parsed.actions : [];
+
+      if (actions.length === 0) {
+        return { results: [], error: null };
+      }
+
+      gridInstance?.beginCustomLoading?.("Applying grid changes...");
+
+      try {
+        return {
+          results: applyGridActions(gridInstance, actions, text),
+          error: null,
+        };
+      } finally {
+        gridInstance?.endCustomLoading?.();
+      }
+    })
+    .catch((error) => ({ results: [], error }));
+}
+
+function joinSucceededOrThrow(results, fallbackError) {
+  const succeeded = results
+    .filter((r) => r.status === "success")
+    .map((r) => r.message);
+
+  if (succeeded.length === 0) {
+    throw (
+      fallbackError ?? new ChatCommandError(FIELD_OR_VALUE_NOT_FOUND_MESSAGE)
+    );
+  }
+
+  return succeeded.join(" ");
+}
+
+async function runCommand(text, { form, gridInstance, aiIntegration }) {
   if (text.length > MAX_USER_MESSAGE_LENGTH) {
     return Promise.reject(
       new ChatCommandError(
@@ -65,52 +163,50 @@ function runCommand(text, { form, gridInstance, aiIntegration }) {
     );
   }
 
-  const columnNames = getGridColumnNames(gridInstance);
-  const prompt = `${buildGridSystemPrompt(columnNames)}\n\nUser request: "${text}"`;
+  const { target, formAction } = await classifyRequest(
+    text,
+    aiIntegration,
+    form,
+  );
 
-  const gridResultsPromise = executeAiCommand(prompt, aiIntegration)
-    .then((parsed) => {
-      const actions = Array.isArray(parsed.actions) ? parsed.actions : [];
+  if (target === "form") {
+    const clearResult = applyFormClearAction(form, formAction);
+    const result = clearResult ?? (await applyFormSmartPaste(form, text));
+    return joinSucceededOrThrow([result]);
+  }
 
-      if (actions.length === 0) {
-        return { results: [], error: null };
-      }
+  if (target === "grid") {
+    const { results: gridResults, error: gridError } =
+      await buildGridResultsPromise(gridInstance, aiIntegration, text);
 
-      gridInstance?.beginCustomLoading();
-
-      try {
-        return { results: applyGridActions(gridInstance, actions, text), error: null };
-      } finally {
-        gridInstance?.endCustomLoading();
-      }
-    })
-    .catch((error) => ({ results: [], error }));
+    return joinSucceededOrThrow(gridResults, gridError);
+  }
 
   const formResultsPromise = (() => {
-    const clearResult = applyFormFieldClear(form, text);
+    const clearResult = applyFormClearAction(form, formAction);
     if (clearResult) {
       return Promise.resolve([clearResult]);
     }
     return applyFormSmartPaste(form, text).then((result) => [result]);
   })();
 
-  return Promise.all([formResultsPromise, gridResultsPromise]).then(
-    ([formResults, { results: gridResults, error: gridError }]) => {
-      const succeeded = [...formResults, ...gridResults]
-        .filter((r) => r.status === "success")
-        .map((r) => r.message);
-
-      if (succeeded.length === 0) {
-        throw gridError ?? new ChatCommandError(FIELD_OR_VALUE_NOT_FOUND_MESSAGE);
-      }
-
-      if (gridError) {
-        console.warn("Grid AI request failed, but form succeeded:", gridError);
-      }
-
-      return succeeded.join(" ");
-    },
+  const gridResultsPromise = buildGridResultsPromise(
+    gridInstance,
+    aiIntegration,
+    text,
   );
+
+  const [formResults, { results: gridResults, error: gridError }] =
+    await Promise.all([formResultsPromise, gridResultsPromise]);
+
+  if (gridError) {
+    console.warn(
+      "Grid AI request failed, but form may have succeeded:",
+      gridError,
+    );
+  }
+
+  return joinSucceededOrThrow([...formResults, ...gridResults], gridError);
 }
 
 function reportAiResult(promise, pushMessage) {
@@ -134,7 +230,10 @@ function reportAiResult(promise, pushMessage) {
     });
 }
 
-function routeMessage(text, { form, gridInstance, aiIntegration, pushMessage }) {
+function routeMessage(
+  text,
+  { form, gridInstance, aiIntegration, pushMessage },
+) {
   return reportAiResult(
     runCommand(text, { form, gridInstance, aiIntegration }),
     pushMessage,

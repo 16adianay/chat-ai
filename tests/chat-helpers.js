@@ -53,10 +53,10 @@ async function sendChatMessage(page, textarea, prompt) {
  */
 async function getWidgetOption(page, selector, widgetName, option) {
   return page.evaluate(
-      ({ selector, widgetName, option }) =>
-          // eslint-disable-next-line no-undef
-          window.$(selector)[widgetName]("instance").option(option),
-      { selector, widgetName, option },
+    ({ selector, widgetName, option }) =>
+      // eslint-disable-next-line no-undef
+      window.$(selector)[widgetName]("instance").option(option),
+    { selector, widgetName, option },
   );
 }
 

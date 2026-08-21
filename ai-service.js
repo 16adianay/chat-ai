@@ -12,7 +12,7 @@ function createAiIntegration() {
       messages,
       model: deployment,
       max_completion_tokens: 1000,
-temperature: 0,
+      temperature: 0,
     };
 
     const response = await aiService.chat.completions.create(params, {

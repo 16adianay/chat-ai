@@ -67,7 +67,9 @@ const gridCommands = {
       }
 
       if (args.operator === "anyof" && Array.isArray(value)) {
-        const mentionedYears = new Set(String(rawText ?? "").match(/\b\d{4}\b/g));
+        const mentionedYears = new Set(
+          String(rawText ?? "").match(/\b\d{4}\b/g),
+        );
         const hasUngroundedYear = value.some(
           (entry) => !mentionedYears.has(String(entry).split("/")[0]),
         );

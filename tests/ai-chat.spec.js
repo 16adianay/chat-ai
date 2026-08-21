@@ -1,6 +1,10 @@
 // @ts-check
 const { test, expect } = require("@playwright/test");
-const { openAiChat, sendChatMessage, getWidgetOption } = require("./chat-helpers");
+const {
+  openAiChat,
+  sendChatMessage,
+  getWidgetOption,
+} = require("./chat-helpers");
 
 /**
  * NOTE ON THESE TESTS
@@ -20,18 +24,18 @@ test.describe("AI Chat — Form (Smart Paste)", () => {
   test("set the customer name to Tom Riddle", async ({ page }) => {
     const textarea = await openAiChat(page);
     const reply = await sendChatMessage(
-        page,
-        textarea,
-        "set the customer name to Tom Riddle",
+      page,
+      textarea,
+      "set the customer name to Tom Riddle",
     );
 
     expect(reply).toContain("Done");
 
     const formData = await getWidgetOption(
-        page,
-        "#form-container",
-        "dxForm",
-        "formData",
+      page,
+      "#form-container",
+      "dxForm",
+      "formData",
     );
     expect(formData.FirstName).toBe("Tom");
     expect(formData.LastName).toBe("Riddle");
@@ -40,30 +44,54 @@ test.describe("AI Chat — Form (Smart Paste)", () => {
   test("change birth to January 13 1977", async ({ page }) => {
     const textarea = await openAiChat(page);
     const reply = await sendChatMessage(
-        page,
-        textarea,
-        "change birth to January 13 1977",
+      page,
+      textarea,
+      "change birth to January 13 1977",
     );
 
     expect(reply).toContain("Done");
 
     const formData = await getWidgetOption(
-        page,
-        "#form-container",
-        "dxForm",
-        "formData",
+      page,
+      "#form-container",
+      "dxForm",
+      "formData",
     );
     const birthDate = new Date(formData.BirthDate);
     expect(birthDate.getFullYear()).toBe(1977);
     expect(birthDate.getMonth()).toBe(0); // January
     expect(birthDate.getDate()).toBe(13);
   });
+
+  test("clear all fields", async ({ page }) => {
+    const textarea = await openAiChat(page);
+
+    const reply = await sendChatMessage(page, textarea, "clear all fields");
+    expect(reply).toContain("Done");
+
+    const formData = await getWidgetOption(
+      page,
+      "#form-container",
+      "dxForm",
+      "formData",
+    );
+    expect(formData.FirstName).toBeFalsy();
+    expect(formData.LastName).toBeFalsy();
+    expect(formData.Prefix).toBeFalsy();
+    expect(formData.Position).toBeFalsy();
+    expect(formData.State).toBeFalsy();
+    expect(formData.BirthDate).toBeFalsy();
+  });
 });
 
 test.describe("AI Chat — DataGrid commands", () => {
   test("sort Subject and Due date", async ({ page }) => {
     const textarea = await openAiChat(page);
-    const reply = await sendChatMessage(page, textarea, "sort Subject and Due date");
+    const reply = await sendChatMessage(
+      page,
+      textarea,
+      "sort Subject and Due date",
+    );
 
     expect(reply).toContain("Done");
 
@@ -84,7 +112,13 @@ test.describe("AI Chat — DataGrid commands", () => {
     const reply = await sendChatMessage(page, textarea, "Clear all sorting");
     expect(reply).toContain("Done");
 
-    const columns = ["Subject", "StartDate", "DueDate", "Priority", "Completion"];
+    const columns = [
+      "Subject",
+      "StartDate",
+      "DueDate",
+      "Priority",
+      "Completion",
+    ];
     for (const column of columns) {
       // DevExtreme's clearSorting() resets sortOrder to `undefined`
       expect(await getSortOrder(page, column)).toBeFalsy();
@@ -94,18 +128,18 @@ test.describe("AI Chat — DataGrid commands", () => {
   test("Keep rows whose duedate is in May 2023", async ({ page }) => {
     const textarea = await openAiChat(page);
     const reply = await sendChatMessage(
-        page,
-        textarea,
-        "Keep rows whose duedate is in May 2023",
+      page,
+      textarea,
+      "Keep rows whose duedate is in May 2023",
     );
 
     expect(reply).toContain("Done");
 
     const filterValue = await getWidgetOption(
-        page,
-        "#grid-container",
-        "dxDataGrid",
-        "filterValue",
+      page,
+      "#grid-container",
+      "dxDataGrid",
+      "filterValue",
     );
 
     // Per the grid's `filterValue` command, filtering a date column by
@@ -116,12 +150,12 @@ test.describe("AI Chat — DataGrid commands", () => {
 
     // Sanity check: every visible row's DueDate actually falls in May 2023.
     const dueDates = await page.evaluate(() =>
-        // eslint-disable-next-line no-undef
-        window
-            .$("#grid-container")
-            .dxDataGrid("instance")
-            .getVisibleRows()
-            .map((row) => row.data.DueDate),
+      // eslint-disable-next-line no-undef
+      window
+        .$("#grid-container")
+        .dxDataGrid("instance")
+        .getVisibleRows()
+        .map((row) => row.data.DueDate),
     );
     for (const dueDate of dueDates) {
       const date = new Date(dueDate);
@@ -131,15 +165,59 @@ test.describe("AI Chat — DataGrid commands", () => {
   });
 });
 
+test.describe("AI Chat — combined form + grid requests", () => {
+  test("clear the First Name field and clear all filters", async ({ page }) => {
+    const textarea = await openAiChat(page);
+
+    // Establish a filter first so there's something for the grid part to clear.
+    await sendChatMessage(
+      page,
+      textarea,
+      "Keep rows whose duedate is in May 2023",
+    );
+    expect(
+      await getWidgetOption(
+        page,
+        "#grid-container",
+        "dxDataGrid",
+        "filterValue",
+      ),
+    ).toBeTruthy();
+
+    const reply = await sendChatMessage(
+      page,
+      textarea,
+      "clear the First Name field and clear all filters",
+    );
+    expect(reply).toContain("Done");
+
+    const formData = await getWidgetOption(
+      page,
+      "#form-container",
+      "dxForm",
+      "formData",
+    );
+    expect(formData.FirstName).toBeFalsy();
+
+    const filterValue = await getWidgetOption(
+      page,
+      "#grid-container",
+      "dxDataGrid",
+      "filterValue",
+    );
+    expect(filterValue).toBeFalsy();
+  });
+});
+
 /** @param {import('@playwright/test').Page} page */
 async function getSortOrder(page, columnDataField) {
   return page.evaluate(
-      (columnDataField) =>
-          // eslint-disable-next-line no-undef
-          window
-              .$("#grid-container")
-              .dxDataGrid("instance")
-              .columnOption(columnDataField, "sortOrder"),
-      columnDataField,
+    (columnDataField) =>
+      // eslint-disable-next-line no-undef
+      window
+        .$("#grid-container")
+        .dxDataGrid("instance")
+        .columnOption(columnDataField, "sortOrder"),
+    columnDataField,
   );
 }

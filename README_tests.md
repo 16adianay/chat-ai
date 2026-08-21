@@ -45,13 +45,13 @@ On failure, a screenshot, video, and trace are saved (see the HTML report).
 
 ## Test scenarios
 
-| # | Prompt | Assertion |
-|---|---|---|
-| 1 | `set the customer name to Tom Riddle` | Form `FirstName === "Tom"`, `LastName === "Riddle"` |
-| 2 | `change birth to January 13 1977` | Form `BirthDate` parses to 1977-01-13 |
-| 3 | `sort Subject and Due date` | Grid `sortOrder` set on both `Subject` and `DueDate` |
-| 4 | `Clear all sorting` | Grid `sortOrder` cleared on every column |
-| 5 | `Keep rows whose duedate is in May 2023` | Grid `filterValue` is `['DueDate', 'anyof', [...'2023/5'...]]`; every visible row's `DueDate` is in May 2023 |
+| #   | Prompt                                   | Assertion                                                                                                    |
+| --- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 1   | `set the customer name to Tom Riddle`    | Form `FirstName === "Tom"`, `LastName === "Riddle"`                                                          |
+| 2   | `change birth to January 13 1977`        | Form `BirthDate` parses to 1977-01-13                                                                        |
+| 3   | `sort Subject and Due date`              | Grid `sortOrder` set on both `Subject` and `DueDate`                                                         |
+| 4   | `Clear all sorting`                      | Grid `sortOrder` cleared on every column                                                                     |
+| 5   | `Keep rows whose duedate is in May 2023` | Grid `filterValue` is `['DueDate', 'anyof', [...'2023/5'...]]`; every visible row's `DueDate` is in May 2023 |
 
 ## Key selectors (for future maintenance)
 

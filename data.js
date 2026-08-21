@@ -8,7 +8,8 @@ const endpoint = "https://public-api.devexpress.com/demo-openai";
 const apiKey = "DEMO";
 
 const emptyViewMessage = "Hello! I am your Page Assistant.";
-const emptyViewPrompt = "I can help you update the employee profile or filter the task list.";
+const emptyViewPrompt =
+  "I can help you update the employee profile or filter the task list.";
 
 const titles = ["Mr.", "Mrs.", "Ms."];
 const colors = { High: "#F1BBBC", Normal: "#F9E2AE", Low: "#9FD89F" };
