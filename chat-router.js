@@ -126,7 +126,7 @@ function buildGridResultsPromise(gridInstance, aiIntegration, text) {
         return { results: [], error: null };
       }
 
-      gridInstance?.beginCustomLoading?.("Applying grid changes...");
+      gridInstance?.beginCustomLoading();
 
       try {
         return {
@@ -134,7 +134,7 @@ function buildGridResultsPromise(gridInstance, aiIntegration, text) {
           error: null,
         };
       } finally {
-        gridInstance?.endCustomLoading?.();
+        gridInstance?.endCustomLoading();
       }
     })
     .catch((error) => ({ results: [], error }));
