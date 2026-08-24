@@ -120,13 +120,13 @@ function buildGridResultsPromise(gridInstance, aiIntegration, text) {
 
   return executeAiCommand(prompt, aiIntegration)
     .then((parsed) => {
+
       const actions = Array.isArray(parsed.actions) ? parsed.actions : [];
 
       if (actions.length === 0) {
+        gridInstance?.endCustomLoading();
         return { results: [], error: null };
       }
-
-      gridInstance?.beginCustomLoading();
 
       try {
         return {
@@ -137,21 +137,44 @@ function buildGridResultsPromise(gridInstance, aiIntegration, text) {
         gridInstance?.endCustomLoading();
       }
     })
+    .catch((error) => {
+      gridInstance?.endCustomLoading();
+      return { results: [], error };
+    });
+}
+
+function buildFormResultsPromise(form, formAction, text) {
+  const clearResult = applyFormClearAction(form, formAction);
+  if (clearResult) {
+    return Promise.resolve({ results: [clearResult], error: null });
+  }
+
+  return applyFormSmartPaste(form, text)
+    .then((result) => ({ results: [result], error: null }))
     .catch((error) => ({ results: [], error }));
+}
+
+function formatFailures(failed) {
+  return failed.map((message) => `❌ ${message}`).join("\n");
 }
 
 function joinSucceededOrThrow(results, fallbackError) {
   const succeeded = results
     .filter((r) => r.status === "success")
     .map((r) => r.message);
+  const failed = results
+    .filter((r) => r.status === "failure")
+    .map((r) => r.message);
 
   if (succeeded.length === 0) {
-    throw (
-      fallbackError ?? new ChatCommandError(FIELD_OR_VALUE_NOT_FOUND_MESSAGE)
-    );
+    throw failed.length > 0
+      ? new ChatCommandError(formatFailures(failed))
+      : (fallbackError ?? new ChatCommandError(FIELD_OR_VALUE_NOT_FOUND_MESSAGE));
   }
 
-  return succeeded.join(" ");
+  return failed.length > 0
+    ? `${succeeded.join(" ")}\n${formatFailures(failed)}`
+    : succeeded.join(" ");
 }
 
 async function runCommand(text, { form, gridInstance, aiIntegration }) {
@@ -170,34 +193,28 @@ async function runCommand(text, { form, gridInstance, aiIntegration }) {
   );
 
   if (target === "form") {
-    const clearResult = applyFormClearAction(form, formAction);
-    const result = clearResult ?? (await applyFormSmartPaste(form, text));
-    return joinSucceededOrThrow([result]);
+    const { results: formResults, error: formError } =
+      await buildFormResultsPromise(form, formAction, text);
+
+    return joinSucceededOrThrow(formResults, formError);
   }
 
   if (target === "grid") {
+    gridInstance?.beginCustomLoading();
+
     const { results: gridResults, error: gridError } =
       await buildGridResultsPromise(gridInstance, aiIntegration, text);
 
     return joinSucceededOrThrow(gridResults, gridError);
   }
 
-  const formResultsPromise = (() => {
-    const clearResult = applyFormClearAction(form, formAction);
-    if (clearResult) {
-      return Promise.resolve([clearResult]);
-    }
-    return applyFormSmartPaste(form, text).then((result) => [result]);
-  })();
-
-  const gridResultsPromise = buildGridResultsPromise(
-    gridInstance,
-    aiIntegration,
-    text,
-  );
-
-  const [formResults, { results: gridResults, error: gridError }] =
-    await Promise.all([formResultsPromise, gridResultsPromise]);
+  const [
+    { results: formResults, error: formError },
+    { results: gridResults, error: gridError },
+  ] = await Promise.all([
+    buildFormResultsPromise(form, formAction, text),
+    buildGridResultsPromise(gridInstance, aiIntegration, text),
+  ]);
 
   if (gridError) {
     console.warn(
@@ -206,7 +223,17 @@ async function runCommand(text, { form, gridInstance, aiIntegration }) {
     );
   }
 
-  return joinSucceededOrThrow([...formResults, ...gridResults], gridError);
+  if (formError) {
+    console.warn(
+      "Form AI request failed, but grid may have succeeded:",
+      formError,
+    );
+  }
+
+  return joinSucceededOrThrow(
+    [...formResults, ...gridResults],
+    gridError ?? formError,
+  );
 }
 
 function reportAiResult(promise, pushMessage) {

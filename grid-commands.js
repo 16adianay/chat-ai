@@ -249,6 +249,9 @@ function buildGridPromptSection(columnNames) {
   return [
     'GRID: translate any part of the request that affects the task grid into one or more grid commands (the "actions" array).',
     `Available columns (dataField): ${columnNames.join(", ")}.`,
+    "Only reference a column that clearly corresponds to one of the available columns above (matching by " +
+      'meaning is fine, e.g. "due date" -> "DueDate"). If the request names a column that does not match ' +
+      "any available column, do NOT substitute the closest-sounding one - omit that action entirely instead.",
     'The "Completion" column is a boolean: true means the task is completed, false means it is not. ' +
       'To filter for "completed" tasks, use {"column": "Completion", "operator": "=", "value": true}. ' +
       'To filter for "not completed" tasks, use {"column": "Completion", "operator": "=", "value": false}.',
