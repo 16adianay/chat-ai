@@ -249,9 +249,15 @@ function buildGridPromptSection(columnNames) {
   return [
     'GRID: translate any part of the request that affects the task grid into one or more grid commands (the "actions" array).',
     `Available columns (dataField): ${columnNames.join(", ")}.`,
-    "Only reference a column that clearly corresponds to one of the available columns above (matching by " +
-      'meaning is fine, e.g. "due date" -> "DueDate"). If the request names a column that does not match ' +
-      "any available column, do NOT substitute the closest-sounding one - omit that action entirely instead.",
+    "CRITICAL RULE: a column mentioned in the request must clearly correspond to one of the available " +
+      'columns above (matching by meaning is fine, e.g. "due date" -> "DueDate"). If it does not - even ' +
+      "if it superficially looks like it could be a column name - you must NOT invent or substitute the " +
+      "closest-sounding available column. Instead, still emit the action using the column name exactly " +
+      "as written in the request, so the app can report that the column wasn't found - never replace it " +
+      "with a different, existing column just to make the action valid.",
+    'Example: request "filter the ZXQ column by foo" - ZXQ matches no available column, so emit ' +
+      '{"column": "ZXQ", ...} as-is (it will correctly fail as "column not found") - do NOT emit an ' +
+      'action for "Subject" or any other real column instead.',
     'The "Completion" column is a boolean: true means the task is completed, false means it is not. ' +
       'To filter for "completed" tasks, use {"column": "Completion", "operator": "=", "value": true}. ' +
       'To filter for "not completed" tasks, use {"column": "Completion", "operator": "=", "value": false}.',
