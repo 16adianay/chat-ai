@@ -158,6 +158,10 @@ function formatFailures(failed) {
   return failed.map((message) => `❌ ${message}`).join("\n");
 }
 
+function formatSucceeded(succeeded) {
+  return succeeded.map((message) => `✅ Done. ${message}`).join("\n");
+}
+
 function joinSucceededOrThrow(results, fallbackError) {
   const succeeded = results
     .filter((r) => r.status === "success")
@@ -173,8 +177,8 @@ function joinSucceededOrThrow(results, fallbackError) {
   }
 
   return failed.length > 0
-    ? `${succeeded.join(" ")}\n${formatFailures(failed)}`
-    : succeeded.join(" ");
+    ? `${formatSucceeded(succeeded)}\n${formatFailures(failed)}`
+    : formatSucceeded(succeeded);
 }
 
 async function runCommand(text, { form, gridInstance, aiIntegration }) {
@@ -241,7 +245,7 @@ function reportAiResult(promise, pushMessage) {
     .then((message) => {
       pushMessage({
         author: { id: "ai", name: "AI Assistant" },
-        text: `✅ Done. ${message}`,
+        text: message,
       });
     })
     .catch((error) => {
