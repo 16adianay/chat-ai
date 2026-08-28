@@ -1,19 +1,4 @@
 $(function () {
-  const toast = $("#toast")
-    .dxToast({
-      displayTime: 600,
-      closeOnClick: true,
-      message: "Form data is saved.",
-      type: "success",
-      position: {
-        of: "#form-container",
-        at: "bottom center",
-        my: "bottom center",
-        offset: "0 -20",
-      },
-    })
-    .dxToast("instance");
-
   DevExpress.config({
     editorStylingMode: "filled",
   });
@@ -38,8 +23,24 @@ $(function () {
   let chatInstance;
   let popupInstance;
   let clearButtonInstance;
-  let form;
+  let formInstance;
   let gridInstance;
+  let toastInstance;
+
+  toastInstance = $("#toast")
+    .dxToast({
+      displayTime: 600,
+      closeOnClick: true,
+      message: "Form data is saved.",
+      type: "success",
+      position: {
+        of: "#form-container",
+        at: "bottom center",
+        my: "bottom center",
+        offset: "0 -20",
+      },
+    })
+    .dxToast("instance");
 
   function pushMessage(message) {
     chatInstance
@@ -83,7 +84,7 @@ $(function () {
     };
 
     const routed = routeMessage(message.text, {
-      form,
+      form: formInstance,
       gridInstance,
       aiIntegration,
       pushMessage,
@@ -194,14 +195,14 @@ $(function () {
 
   const aiIntegration = createAiIntegration();
 
-  form = $("#form-container")
+  formInstance = $("#form-container")
     .dxForm({
       formData: employee,
       colCount: 3,
       labelLocation: "top",
       onOptionChanged: (e) => {
         if (e.name === "isDirty") {
-          const saveButton = form.getButton("Save");
+          const saveButton = formInstance.getButton("Save");
           saveButton.option("disabled", !e.value);
         }
       },
@@ -281,7 +282,7 @@ $(function () {
             useSubmitBehavior: true,
             width: "120px",
             onClick: () => {
-              toast.show();
+              toastInstance.show();
             },
           },
         },
