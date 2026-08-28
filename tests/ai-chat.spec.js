@@ -125,12 +125,12 @@ test.describe("AI Chat — DataGrid commands", () => {
     }
   });
 
-  test("Keep rows whose duedate is in May 2023", async ({ page }) => {
+  test("Keep rows whose duedate is in May 2026", async ({ page }) => {
     const textarea = await openAiChat(page);
     const reply = await sendChatMessage(
       page,
       textarea,
-      "Keep rows whose duedate is in May 2023",
+      "Keep rows whose duedate is in May 2026",
     );
 
     expect(reply).toContain("Done");
@@ -146,9 +146,9 @@ test.describe("AI Chat — DataGrid commands", () => {
     // year/month uses the 'anyof' operator with a "YYYY/M" token.
     expect(filterValue[0]).toBe("DueDate");
     expect(filterValue[1]).toBe("anyof");
-    expect(filterValue[2]).toContain("2023/5");
+    expect(filterValue[2]).toContain("2026/5");
 
-    // Sanity check: every visible row's DueDate actually falls in May 2023.
+    // Sanity check: every visible row's DueDate actually falls in May 2026.
     const dueDates = await page.evaluate(() =>
       // eslint-disable-next-line no-undef
       window
@@ -159,7 +159,7 @@ test.describe("AI Chat — DataGrid commands", () => {
     );
     for (const dueDate of dueDates) {
       const date = new Date(dueDate);
-      expect(date.getFullYear()).toBe(2023);
+      expect(date.getFullYear()).toBe(2026);
       expect(date.getMonth()).toBe(4); // May
     }
   });
@@ -173,7 +173,7 @@ test.describe("AI Chat — combined form + grid requests", () => {
     await sendChatMessage(
       page,
       textarea,
-      "Keep rows whose duedate is in May 2023",
+      "Keep rows whose duedate is in May 2026",
     );
     expect(
       await getWidgetOption(
