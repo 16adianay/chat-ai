@@ -77,7 +77,7 @@ const gridCommands = {
         if (hasUngroundedYear) {
           return {
             status: "failure",
-            message: `I couldn't find that field or column, or the value you entered isn't valid.`,
+            message: `No field or column exists with such a name, or the entered value is invalid.`,
           };
         }
       }
@@ -107,7 +107,7 @@ const gridCommands = {
       } catch {
         return {
           status: "failure",
-          message: "I couldn't clear the grid's filters.",
+          message: "I couldn't clear the DataGrid's filters.",
         };
       }
     },
@@ -162,7 +162,7 @@ const gridCommands = {
       } catch {
         return {
           status: "failure",
-          message: "I couldn't clear the grid's sorting.",
+          message: "I couldn't clear the DataGrid's sorting.",
         };
       }
     },
@@ -210,7 +210,7 @@ function getColumnOrFail(grid, columnName) {
       column: null,
       failure: {
         status: "failure",
-        message: `I couldn't find a grid column named "${columnName}".`,
+        message: `I couldn't find a DataGrid column named "${columnName}".`,
       },
     };
   }

@@ -49,7 +49,7 @@ function createAiIntegration() {
         return {
           promise: Promise.reject(
             new ChatCommandError(
-              "❌ That message is too long for me to process. Please shorten it and try again.",
+              "❌ This message is too long for me to process. Please shorten it and try again.",
             ),
           ),
           abort: () => {},

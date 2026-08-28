@@ -7,7 +7,7 @@ function extractJson(text) {
     return JSON.parse(match[0]);
   } catch {
     throw new ChatCommandError(
-      "❌ I received an unexpected response from the AI. Please rephrase your request and try again.",
+      "❌ I received an unexpected response from the AI service. Please rephrase your request and try again.",
     );
   }
 }
@@ -52,7 +52,7 @@ function buildGridSystemPrompt(columnNames) {
 }
 
 const FIELD_OR_VALUE_NOT_FOUND_MESSAGE =
-  "❌ I couldn't find that field or column, or the value you entered isn't valid. Please check the name and value and try again.";
+  "❌ No field or column exists with such a name, or the entered value is invalid. Please check the name and value and try again.";
 
 const MAX_USER_MESSAGE_LENGTH = 2000;
 const ROUTER_TARGETS = new Set(["form", "grid", "mixed", "none"]);
@@ -185,7 +185,7 @@ async function runCommand(text, { form, gridInstance, aiIntegration }) {
   if (text.length > MAX_USER_MESSAGE_LENGTH) {
     return Promise.reject(
       new ChatCommandError(
-        "❌ That message is too long for me to process. Please shorten it and try again.",
+        "❌ This message is too long for me to process. Please shorten it and try again.",
       ),
     );
   }
@@ -222,14 +222,14 @@ async function runCommand(text, { form, gridInstance, aiIntegration }) {
 
   if (gridError) {
     console.warn(
-      "Grid AI request failed, but form may have succeeded:",
+      "DataGrid AI request failed, but the Form request may have succeeded:",
       gridError,
     );
   }
 
   if (formError) {
     console.warn(
-      "Form AI request failed, but grid may have succeeded:",
+      "Form AI request failed, but the DataGrid request may have succeeded:",
       formError,
     );
   }

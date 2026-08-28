@@ -15,7 +15,7 @@ function applyFormClearAction(form, formAction) {
   if (formAction.type === "clear_all") {
     try {
       form.clear();
-      return { status: "success", message: "Cleared all form fields." };
+      return { status: "success", message: "Cleared all Form fields." };
     } catch {
       return {
         status: "failure",
@@ -35,7 +35,7 @@ function applyFormClearAction(form, formAction) {
         message: `I couldn't find a field named "${formAction.field}" to clear.`,
       };
     }
-    
+
     form.updateData(formAction.field, null);
 
     return { status: "success", message: `Cleared ${formAction.field}.` };
@@ -63,7 +63,7 @@ function applyFormSmartPaste(form, text) {
           ? { status: "success", message: "Updated the form." }
           : {
               status: "failure",
-              message: "I couldn't find any form fields matching the request.",
+              message: "I couldn't find any Form fields matching the request.",
             },
       );
     };
@@ -71,8 +71,7 @@ function applyFormSmartPaste(form, text) {
     const timeoutId = setTimeout(() => {
       finish({
         status: "failure",
-        message:
-          "I couldn't update the form. Please try rephrasing your request.",
+        message: "I couldn't process your request. Please try rephrasing it.",
       });
     }, SMART_PASTE_TIMEOUT_MS);
 
@@ -83,7 +82,7 @@ function applyFormSmartPaste(form, text) {
     } catch {
       finish({
         status: "failure",
-        message: "I couldn't update the form. Please try rephrasing your request.",
+        message: "I couldn't process your request. Please try rephrasing it.",
       });
     }
   });
