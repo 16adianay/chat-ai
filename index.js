@@ -273,6 +273,7 @@ $(function () {
           itemType: "button",
           name: "Save",
           colSpan: 3,
+          cssClass: "save-button",
           buttonOptions: {
             text: "Save",
             type: "default",
