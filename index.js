@@ -1,4 +1,19 @@
 $(function () {
+  const toast = $("#toast")
+    .dxToast({
+      displayTime: 600,
+      closeOnClick: true,
+      message: "Form data is saved.",
+      type: "success",
+      position: {
+        of: "#form-container",
+        at: "bottom center",
+        my: "bottom center",
+        offset: "0 -20",
+      },
+    })
+    .dxToast("instance");
+
   DevExpress.config({
     editorStylingMode: "filled",
   });
@@ -184,6 +199,12 @@ $(function () {
       formData: employee,
       colCount: 3,
       labelLocation: "top",
+      onOptionChanged: (e) => {
+        if (e.name === "isDirty") {
+          const saveButton = form.getButton("Save");
+          saveButton.option("disabled", !e.value);
+        }
+      },
       aiIntegration,
       items: [
         {
@@ -246,6 +267,21 @@ $(function () {
             instruction:
               "Only fill this field if the text explicitly refers to the employee's own birth " +
               "date or date of birth.",
+          },
+        },
+        {
+          itemType: "button",
+          name: "Save",
+          colSpan: 3,
+          buttonOptions: {
+            text: "Save",
+            type: "default",
+            disabled: true,
+            useSubmitBehavior: true,
+            width: "120px",
+            onClick: () => {
+              toast.show();
+            },
           },
         },
       ],
