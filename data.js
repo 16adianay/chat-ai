@@ -7,9 +7,9 @@ const apiVersion = "2024-02-01";
 const endpoint = "https://public-api.devexpress.com/demo-openai";
 const apiKey = "DEMO";
 
-const emptyViewMessage = "Hello! I am your Page Assistant.";
+const emptyViewMessage = "How can I help with this page?";
 const emptyViewPrompt =
-  "I can help you update the employee profile or filter the task list.";
+  "Update employee Form fields. Filter or sort tasks, display or hide DataGrid columns, or clear all filters and sorting."
 
 const titles = ["Mr.", "Mrs.", "Ms."];
 const colors = { High: "#F1BBBC", Normal: "#F9E2AE", Low: "#9FD89F" };
