@@ -178,7 +178,7 @@ $(function () {
               .text(emptyViewMessage);
             const $prompt = $("<div>")
               .addClass("ai-chat-empty-prompt")
-              .text(emptyViewPrompt);
+              .html(emptyViewPrompt);
 
             $(container).append($icon).append($message).append($prompt);
           },

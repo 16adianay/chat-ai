@@ -9,7 +9,7 @@ const apiKey = "DEMO";
 
 const emptyViewMessage = "How can I help with this page?";
 const emptyViewPrompt =
-  "Update employee Form fields. Filter or sort tasks, display or hide DataGrid columns, or clear all filters and sorting."
+  "Update employee <b>Form</b> fields.\nFilter or sort tasks, display or hide <b>DataGrid</b> columns, or clear all filters and sorting."
 
 const titles = ["Mr.", "Mrs.", "Ms."];
 const colors = { High: "#F1BBBC", Normal: "#F9E2AE", Low: "#9FD89F" };
